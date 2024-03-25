@@ -1,7 +1,5 @@
 package pt.isel
 
-import pt.isel.test.Classroom
-import pt.isel.test.Student
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

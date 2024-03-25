@@ -1,8 +1,6 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
-import pt.isel.test.Classroom
-import pt.isel.test.Student
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
