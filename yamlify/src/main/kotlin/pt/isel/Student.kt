@@ -1,4 +1,4 @@
-package pt.isel.test
+package pt.isel
 
 class Student @JvmOverloads constructor (
     val name: String,
