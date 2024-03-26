@@ -17,49 +17,78 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
     final override fun parseObject(yaml: Reader): T = newInstance(getObjectValues(yaml))
 
-    final override fun parseList(yaml: Reader): List<T> {
+    final override fun parseList(yaml: Reader): List<T> = createObjectsFromList(getListValues(yaml))
+
+    private fun createObjectsFromList(objectsList: List<Any>): List<T> {
+        val resultList = mutableListOf<T>()
+        objectsList.forEach {
+            if (it is Map<*, *>) {
+                resultList.add(newInstance(it as Map<String, Any>))
+            } else if (it is List<*>) {
+                resultList.add(createObjectsFromList(it as List<Any>) as T)
+            }
+        }
+        return resultList
+    }
+
+    private fun getListValues(yaml: Reader): List<Any> {
         val yamlText = yaml.readText()
         val yamlObjects = getObjectList(yamlText)
-        return yamlObjects.map { parseObject(it.reader()) }
+        var resultList = mutableListOf<T>()
+        yamlObjects.forEach {
+            if (getObjectList(it).size > 1) //check for nested lists
+                resultList.add(getListValues(it.reader()) as T)
+            else
+                resultList.add(getObjectValues(it.reader()) as T)
+        }
+        return resultList
     }
+
     private fun getObjectValues (yaml: Reader): Map<String, Any> {
-        val lines = yaml.readLines()
+
+        val lines = yaml.readLines().dropWhile { it.isBlank() }
         val map = mutableMapOf<String, Any>()
         var i = 0
 
+        val objIndentation = lines.first().takeWhile { it == ' ' }.length
+
         while (i < lines.size) {
 
-            val line = lines[i++]
+            var line = lines[i++]
 
             if (line.isBlank()) continue
 
             val indentation = line.takeWhile { it == ' ' }.length
-            val parts = line.trim().split(":").map { it.trim() }.filter { it.isNotBlank() }
 
-            if (parts.size == 1) {
-                val isSeparator = line.filter { it != '-' }.isBlank()
-                if (isSeparator) { // Sequence of mappings
+            if (indentation != objIndentation) throw IllegalArgumentException("Invalid indentation at: ${line.trim()}")
+
+            val parts = line.split(":").map { it.trim() }.filter { it.isNotBlank() }
+
+            when {
+                parts.size == 2 -> map[parts[0]] = parts[1]
+                isScalar(line) -> map[parts[0]] = line.split("-").last().trim()
+                else -> {
+                    val nextLine = lines[i]
                     val indentedLines = getLinesSequence(lines, i, indentation)
-                    val list = map.getOrPut("list") { mutableListOf<Map<String, Any>>() } as MutableList<Map<String, Any>>
-                    list.add(getObjectValues(indentedLines.joinToString("\n").reader()))
-                    i += indentedLines.size
-                } else if (line.contains("-")) { // sequence of scalars
-                    val value = line.split("-").last().trim()
-                    val list = map.getOrPut("list") { mutableListOf<String>() } as MutableList<String>
-                    list.add(value)
-                    map["list"] = list
-                }
-                else { // object
-                    val indentedLines = getLinesSequence(lines, i, indentation)
-                    map[parts[0]] = getObjectValues(indentedLines.joinToString("\n").reader())
+
+                    map[parts[0]] = if (nextLine.contains("-")) {
+                        getListValues(indentedLines.joinToString("\n").reader())
+                    } else {
+                        getObjectValues(indentedLines.joinToString("\n").reader())
+                    }
+
                     i += indentedLines.size
                 }
-            } else { // scalar to scalar
-                map[parts[0]] = parts[1]
             }
+
         }
 
+
         return map
+    }
+
+    private fun isScalar(line: String): Boolean {
+        return line.filter { it != '-' }.isNotBlank() && line.contains("-")
     }
     private fun getLinesSequence(lines: List<String>, start: Int, indentation: Int): List<String> {
         return lines.drop(start).takeWhile { line ->
@@ -70,19 +99,29 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     private fun getObjectList(yaml: String): List<String> {
 
         val lines = yaml.lines().dropWhile { it.isBlank() }
-        val indentation = lines.first().takeWhile { it == ' ' }.length
+        val objIndentation = lines.first().takeWhile { it == ' ' }.length
 
         val list = lines.takeWhile { it.contains("-") && it.filter { it != '-' }.isNotBlank() }.toMutableList()
-
         val currLines = mutableListOf<String>()
 
+        var currLevelIndentation = objIndentation
+
         lines.forEach { line ->
-            if (line.length < indentation || line.isBlank()) return@forEach
-            if (line[indentation] == '-') {
-                list.add(currLines.joinToString("\n"))
-                currLines.clear()
-            } else {
-                currLines.add(line)
+            if (line.isNotBlank()) {
+                val lineIndentation = line.takeWhile { it == ' ' }.length
+
+                if ((lineIndentation - currLevelIndentation) % 2 != 0)
+                    throw IllegalArgumentException("Invalid indentation at $line")
+
+                if (lineIndentation != currLevelIndentation)
+                    currLevelIndentation = lineIndentation
+
+                if (line[objIndentation] == '-') {
+                    list.add(currLines.joinToString("\n"))
+                    currLines.clear()
+                } else {
+                    currLines.add(line)
+                }
             }
         }
 

@@ -186,7 +186,148 @@ class YamlParserReflectTest {
         assertFalse { grades2.hasNext() }
         assertFalse { seq.hasNext() }
     }
+
+    @Test
+    fun parseScalarListObject() {
+        val yaml = """
+            list:
+              - 1
+              - 2
+              - 3
+        """.trimIndent()
+        val list = YamlParserReflect.yamlParser(IntList::class)
+            .parseObject(yaml.reader())
+            .list
+        assertEquals(1, list[0])
+        assertEquals(2, list[1])
+        assertEquals(3, list[2])
+    }
+
+    @Test
+    fun `parse student incorrect indentation at address object`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                address:
+                  street: Rua Rosa
+                  nr: 78
+                   city: Lisbon
+                from: Oleiros"""
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
+    @Test
+    fun `parse student incorrect indentation at student object`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+              address:
+                  street: Rua Rosa
+                  nr: 78
+                  city: Lisbon
+                from: Oleiros""".trimIndent()
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
+    @Test
+    fun `parse Int list incorrect indentation at scalar sequence`() {
+        val yaml = """
+             - 1
+             - 2
+              - 3
+        """.trimIndent()
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Int::class).parseList(yaml.reader())
+        }
+    }
+
+    @Test
+    fun `parse List of List of str`() {
+        val yaml = """
+            - 
+              - 1
+              - 2
+              - 3
+            - 
+              - 4
+              - 5
+              - 6
+        """.trimIndent()
+        val seq = YamlParserReflect.yamlParser(String::class)
+            .parseList(yaml.reader()) as List<List<String>>
+        assertEquals("1", seq[0][0])
+        assertEquals("2", seq[0][1])
+        assertEquals("3", seq[0][2])
+        assertEquals("4", seq[1][0])
+        assertEquals("5", seq[1][1])
+        assertEquals("6", seq[1][2])
+    }
+
+    @Test
+    fun `parse intListList`() {
+        val yaml = """
+         list:
+           - 
+             - 1
+             - 2
+             - 3
+           - 
+             - 4
+             - 5
+             - 6
+            
+        """.trimIndent()
+        val seq = YamlParserReflect.yamlParser(IntListList::class)
+            .parseObject(yaml.reader())
+        println(1)
+
+    }
+
+    @Test
+    fun `parse List of List of List of int`() {
+        val yaml = """
+            - 
+              - 
+                - 1
+                - 2
+                - 3
+              - 
+                - 4
+                - 5
+                - 6
+            - 
+              - 
+                - 7
+                - 8
+                - 9
+              - 
+                - 10
+                - 11
+                - 12
+        """.trimIndent()
+        val seq = YamlParserReflect.yamlParser(Int::class)
+            .parseList(yaml.reader()) as List<List<List<Int>>>
+        assertEquals(1, seq[0][0][0])
+        assertEquals(2, seq[0][0][1])
+        assertEquals(3, seq[0][0][2])
+        assertEquals(4, seq[0][1][0])
+        assertEquals(5, seq[0][1][1])
+        assertEquals(6, seq[0][1][2])
+        assertEquals(7, seq[1][0][0])
+        assertEquals(8, seq[1][0][1])
+        assertEquals(9, seq[1][0][2])
+        assertEquals(10, seq[1][1][0])
+        assertEquals(11, seq[1][1][1])
+        assertEquals(12, seq[1][1][2])
+    }
+
 }
+
+
 
 const val yamlSequenceOfStudents = """
             -

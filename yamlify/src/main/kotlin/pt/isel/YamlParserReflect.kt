@@ -1,7 +1,6 @@
 package pt.isel
 
 import kotlin.reflect.*
-import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.starProjectedType
 
 
@@ -36,8 +35,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         val constructor = type.constructors.first()
 
         if (constructor.parameters.isEmpty()) {
-            val scalarList = args["list"] as List<*>
-            return castValueToType(scalarList.first()!!, type as KClassifier) as T
+            return castValueToType(args.values.first(), type.starProjectedType) as T
         }
 
         val properties = args.keys.map { prop ->
@@ -47,7 +45,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         val constructorArgs = properties.mapNotNull { (srcProp, destProp) ->
             destProp?.let { destProp ->
                 val value = args[srcProp]
-                val type = destProp.type.classifier as KClassifier
+                val type = destProp.type
                 val castedValue = value?.let { castValueToType(it, type) }
                 destProp to castedValue
             }
@@ -58,39 +56,38 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         srcProp: String,
         ctorParameters: List<KParameter>) : KParameter?{
         return ctorParameters.firstOrNull { arg ->
-            srcProp == arg.name
+            srcProp == arg.name //|| arg.annotations.any { it is YamlArg && it.yamlName == srcProp }
         }
     }
-
-    private fun castValueToType(value: Any, type: KClassifier): Any {
-       return when (type) {
-            String::class -> value as String
-            Int::class -> (value as String).toInt()
-            List::class -> {
-                val map = value as Map<*, *>
-                val list = map["list"] as List<*>
-                if (this.type == Student::class) {
-                    list.map { yamlParser(Grade::class).newInstance(it as Map<String, Any>) }
-                } else {
-                    TODO() // Non implemented types
-                }
-            }
-           Sequence::class -> {
-               val map = value as Map<*, *>
-               val list = map["list"] as List<*>
-               if(this.type == Classroom::class) {
-                   if (type == Student::class)
-                       list.map { yamlParser(Grade::class).newInstance(it as Map<String, Any>) }.asSequence()
-                   else
-                       list.map { yamlParser(Student::class).newInstance(it as Map<String, Any>) }.asSequence()
-               } else {
-                   TODO() // Non implemented types
-               }
-           }
-            else -> yamlParser(type as KClass<*>).newInstance(value as Map<String, Any>)
-       }
+    private fun castValueToType(value: Any, type: KType): Any {
+        val arg = value as? String
+        return when (type.classifier) {
+            String::class -> arg!!
+            Int::class -> arg!!.toInt()
+            Long::class -> arg!!.toLong()
+            List::class -> getIterableValue(value, type)
+            Set::class -> getIterableValue(value, type).toSet()
+            Array::class -> getIterableValue(value, type).toTypedArray()
+            Sequence::class -> getIterableValue(value, type).asSequence()
+            ArrayList::class -> ArrayList(getIterableValue(value, type))
+            else -> yamlParser(type.classifier as KClass<*>).newInstance(value as Map<String, Any>)
+        }
     }
+    private fun getIterableValue(value: Any, type: KType): List<Any> {
 
+        val list = value as List<*>
 
+        if (type.arguments.isEmpty())
+            return list.map { castValueToType(it!!, type) }
+
+        return list.map {
+            if (it is List<*>)
+                getIterableValue(it, type.arguments.first().type!!)
+            else
+                yamlParser(type.arguments.first().type!!.classifier as KClass<*>)
+                    .newInstance((it as Map<String, Any>))
+        }
+
+    }
 
 }
