@@ -34,7 +34,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     private fun getListValues(yaml: Reader): List<Any> {
         val yamlText = yaml.readText()
         val yamlObjects = getObjectList(yamlText)
-        var resultList = mutableListOf<T>()
+        val resultList = mutableListOf<T>()
         yamlObjects.forEach {
             if (getObjectList(it).size > 1) //check for nested lists
                 resultList.add(getListValues(it.reader()) as T)
@@ -54,7 +54,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
         while (i < lines.size) {
 
-            var line = lines[i++]
+            val line = lines[i++]
 
             if (line.isBlank()) continue
 

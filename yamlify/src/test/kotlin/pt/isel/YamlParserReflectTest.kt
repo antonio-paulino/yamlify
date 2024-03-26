@@ -283,8 +283,13 @@ class YamlParserReflectTest {
         """.trimIndent()
         val seq = YamlParserReflect.yamlParser(IntListList::class)
             .parseObject(yaml.reader())
-        println(1)
-
+            .list
+        assertEquals(1, seq[0][0])
+        assertEquals(2, seq[0][1])
+        assertEquals(3, seq[0][2])
+        assertEquals(4, seq[1][0])
+        assertEquals(5, seq[1][1])
+        assertEquals(6, seq[1][2])
     }
 
     @Test
