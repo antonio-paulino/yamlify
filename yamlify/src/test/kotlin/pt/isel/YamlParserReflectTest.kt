@@ -421,6 +421,18 @@ class YamlParserReflectTest {
         assertFalse { seq.hasNext() }
     }
 
+    @Test
+    fun `test parse classroom renamed props`() {
+        val yaml = """
+          classroom_id: i45
+          class_students: $yamlSequenceOfStudents
+        """.trimIndent()
+        val cr = YamlParserReflect.yamlParser(Classroom::class)
+            .parseObject(yaml.reader())
+        assertEquals("i45", cr.id)
+        assertStudentsInSequence(cr.students.iterator())
+    }
+
 }
 
 
