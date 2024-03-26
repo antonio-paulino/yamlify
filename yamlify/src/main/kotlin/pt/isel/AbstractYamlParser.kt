@@ -65,6 +65,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             val parts = line.split(":").map { it.trim() }.filter { it.isNotBlank() }
 
             when {
+                map.containsKey(parts[0]) -> throw IllegalArgumentException("Duplicate key ${parts[0]} for ${type.simpleName}")
                 parts.size == 2 -> map[parts[0]] = parts[1]
                 isScalar(line) -> map[parts[0]] = line.split("-").last().trim()
                 else -> {
@@ -93,7 +94,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     private fun getLinesSequence(lines: List<String>, start: Int, indentation: Int): List<String> {
         return lines.drop(start).takeWhile { line ->
             val lineIndentation = line.takeWhile { it == ' ' }.length
-            line.isNotBlank() && lineIndentation > indentation
+            lineIndentation > indentation
         }
     }
     private fun getObjectList(yaml: String): List<String> {
@@ -101,24 +102,23 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
         val lines = yaml.lines().dropWhile { it.isBlank() }
         val objIndentation = lines.first().takeWhile { it == ' ' }.length
 
-        val list = lines.takeWhile { it.contains("-") && it.filter { it != '-' }.isNotBlank() }.toMutableList()
+        val list = mutableListOf<String>()
         val currLines = mutableListOf<String>()
-
-        var currLevelIndentation = objIndentation
 
         lines.forEach { line ->
             if (line.isNotBlank()) {
                 val lineIndentation = line.takeWhile { it == ' ' }.length
 
-                if ((lineIndentation - currLevelIndentation) % 2 != 0)
+                if ((lineIndentation - objIndentation) % 2 != 0)
                     throw IllegalArgumentException("Invalid indentation at $line")
 
-                if (lineIndentation != currLevelIndentation)
-                    currLevelIndentation = lineIndentation
-
                 if (line[objIndentation] == '-') {
-                    list.add(currLines.joinToString("\n"))
-                    currLines.clear()
+                    if (isScalar(line)) {
+                        list.add(line)
+                    } else {
+                        list.add(currLines.joinToString("\n"))
+                        currLines.clear()
+                    }
                 } else {
                     currLines.add(line)
                 }

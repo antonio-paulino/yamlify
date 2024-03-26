@@ -42,6 +42,16 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
             prop to matchParameter(prop, constructor.parameters)
         }
 
+        val duplicateProps = properties.groupBy { it.second }.mapNotNull {
+            if (it.value.size > 1) it
+            else null
+        }
+
+        if (duplicateProps.isNotEmpty()) {
+            val names = duplicateProps.map { prop -> prop.key!!.name to prop.value.map { it.first } }
+            throw IllegalArgumentException("Duplicate properties: $names")
+        }
+
         val constructorArgs = properties.mapNotNull { (srcProp, destProp) ->
             destProp?.let { destProp ->
                 val value = args[srcProp]
@@ -56,7 +66,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         srcProp: String,
         ctorParameters: List<KParameter>) : KParameter?{
         return ctorParameters.firstOrNull { arg ->
-            srcProp == arg.name //|| arg.annotations.any { it is YamlArg && it.yamlName == srcProp }
+            srcProp == arg.name || arg.annotations.any { it is YamlArg && it.yamlName == srcProp }
         }
     }
     private fun castValueToType(value: Any, type: KType): Any {
@@ -76,9 +86,6 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
     private fun getIterableValue(value: Any, type: KType): List<Any> {
 
         val list = value as List<*>
-
-        if (type.arguments.isEmpty())
-            return list.map { castValueToType(it!!, type) }
 
         return list.map {
             if (it is List<*>)

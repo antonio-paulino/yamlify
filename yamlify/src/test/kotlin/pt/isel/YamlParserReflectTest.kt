@@ -325,6 +325,102 @@ class YamlParserReflectTest {
         assertEquals(12, seq[1][1][2])
     }
 
+    @Test
+    fun `test parse student with duplicate properties`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                from: Lisboa
+            """.trimIndent()
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
+    @Test
+    fun `test parse student with duplicate properties in address`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                address:
+                  street: Rua Rosa
+                  nr: 78
+                  city: Lisbon
+                  city: Porto
+            """.trimIndent()
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
+
+    @Test
+    fun `test parse student with renamed properties duplicated`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                city of birth: Lisboa
+            """.trimIndent()
+        assertThrows<IllegalArgumentException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
+    @Test
+    fun `test parse student with renamed from to city`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                city: Lisboa
+            """.trimIndent()
+        val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        assertEquals("Maria Candida", st.name)
+        assertEquals(873435, st.nr)
+        assertEquals("Lisboa", st.from)
+    }
+
+    @Test
+    fun `test parse student with renamed from to city of birth`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                city of birth: Lisboa
+            """.trimIndent()
+        val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        assertEquals("Maria Candida", st.name)
+        assertEquals(873435, st.nr)
+        assertEquals("Lisboa", st.from)
+    }
+
+    @Test
+    fun `test parse sequence of students with renamed props`() {
+        val yaml = """
+            -
+              name: Maria Candida
+              nr: 873435
+              city: Oleiros
+            - 
+              name: Jose Carioca
+              nr: 1214398
+              city of birth: Tamega
+        """
+        val seq = YamlParserReflect.yamlParser(Student::class)
+            .parseList(yaml.reader())
+            .iterator()
+        val st1 = seq.next()
+        assertEquals("Maria Candida", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        val st2 = seq.next()
+        assertEquals("Jose Carioca", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        assertFalse { seq.hasNext() }
+    }
+
 }
 
 

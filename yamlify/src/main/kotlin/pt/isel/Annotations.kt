@@ -1,4 +1,5 @@
 package pt.isel
 
-@Target(AnnotationTarget.PROPERTY)
+@Repeatable
+@Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class YamlArg(val yamlName: String)

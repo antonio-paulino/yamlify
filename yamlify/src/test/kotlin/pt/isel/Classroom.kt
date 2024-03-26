@@ -1,3 +1,8 @@
 package pt.isel
 
-class Classroom(val id: String, val students: Sequence<Student>)
+class Classroom(
+    @YamlArg("classroom_id")
+    val id: String,
+    @YamlArg("class_students")
+    val students: Sequence<Student>
+)
