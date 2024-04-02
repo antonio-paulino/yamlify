@@ -2,6 +2,7 @@ package pt.isel
 
 import kotlin.reflect.*
 import kotlin.reflect.full.starProjectedType
+import pt.isel.YamlConvert
 
 
 /**
@@ -62,8 +63,20 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
             destProp?.let { destProp ->
                 val value = args[srcProp] // Get the value of the property
                 val type = destProp.type // Get the type of the property
-                val castedValue = value?.let { castValueToType(it, type) } // Cast the value to the suitable type
-                destProp to castedValue
+                // Check if the property has a YamlConvert annotation
+                if (destProp.annotations.any { it is YamlConvert }) {
+                    // Get the YamlConvert annotation object
+                    val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
+                    // Get the object instance of the custom parser
+                    val customParserInstance = customParser.parser.objectInstance
+                    // Parse the value using the custom parser
+                    val parsed = customParserInstance?.parseObject(value.toString().reader())
+                    // Format: property : parsed value
+                    destProp to parsed
+                } else {
+                    val castedValue = value?.let { castValueToType(it, type) } // Cast the value to the suitable type
+                    destProp to castedValue
+                }
             }
         }
         // Return a new instance of the type using the constructor with the arguments

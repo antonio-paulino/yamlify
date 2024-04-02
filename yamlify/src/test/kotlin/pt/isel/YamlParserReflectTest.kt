@@ -1,6 +1,7 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
+import java.time.format.DateTimeParseException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,7 +20,8 @@ class YamlParserReflectTest {
         val yaml = """
                 name: Maria Candida
                 nr: 873435
-                from: Oleiros"""
+                from: Oleiros
+                birth: 1999-12-15"""
         val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
         assertEquals(873435, st.nr)
@@ -33,6 +35,7 @@ class YamlParserReflectTest {
                   street: Rua Rosa
                   nr: 78
                   city: Lisbon
+                birth: 1999-12-15
                 from: Oleiros"""
         val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
@@ -78,10 +81,12 @@ class YamlParserReflectTest {
               name: Maria Candida
               nr: 873435
               from: Oleiros
+              birth: 1999-12-15
             - 
               name: Jose Carioca
               nr: 1214398
               from: Tamega
+              birth: 1999-12-15
         """
         val seq = YamlParserReflect.yamlParser(Student::class)
             .parseList(yaml.reader())
@@ -105,6 +110,7 @@ class YamlParserReflectTest {
                 street: Rua Rosa
                 nr: 78
                 city: Lisbon
+              birth: 1999-12-15
               from: Oleiros
             - 
               name: Jose Carioca
@@ -113,6 +119,7 @@ class YamlParserReflectTest {
                 street: Rua Azul
                 nr: 12
                 city: Porto
+              birth: 1999-12-15
               from: Tamega
         """
         val seq = YamlParserReflect.yamlParser(Student::class)
@@ -380,6 +387,7 @@ class YamlParserReflectTest {
                 name: Maria Candida
                 nr: 873435
                 city: Lisboa
+                birth: 1999-12-15
             """.trimIndent()
         val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
@@ -393,6 +401,7 @@ class YamlParserReflectTest {
                 name: Maria Candida
                 nr: 873435
                 city of birth: Lisboa
+                birth: 1999-12-15
             """.trimIndent()
         val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
@@ -407,10 +416,12 @@ class YamlParserReflectTest {
               name: Maria Candida
               nr: 873435
               city: Oleiros
+              birth: 1999-12-15
             - 
               name: Jose Carioca
               nr: 1214398
               city of birth: Tamega
+              birth: 1999-12-15
         """
         val seq = YamlParserReflect.yamlParser(Student::class)
             .parseList(yaml.reader())
@@ -438,6 +449,70 @@ class YamlParserReflectTest {
         assertStudentsInSequence(cr.students.iterator())
     }
 
+    // Tests for the YamlConvert annotation
+
+    @Test
+    fun `test parse student with custom parser`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                birth: 1999-12-15
+            """.trimIndent()
+        val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        assertEquals("Maria Candida", st.name)
+        assertEquals(873435, st.nr)
+        assertEquals("Oleiros", st.from)
+    }
+
+    @Test
+    fun `test parse student with custom parser and list of grades`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                birth: 1999-12-15
+                grades:
+                  - 
+                    subject: LAE
+                    classification: 18
+                  -
+                    subject: PDM
+                    classification: 15
+                  -
+                    subject: PC
+                    classification: 19
+            """.trimIndent()
+        val st = YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        assertEquals("Maria Candida", st.name)
+        assertEquals(873435, st.nr)
+        assertEquals("Oleiros", st.from)
+        val grades = st.grades.iterator()
+        val g1 = grades.next()
+        assertEquals("LAE", g1.subject)
+        assertEquals(18, g1.classification)
+        val g2 = grades.next()
+        assertEquals("PDM", g2.subject)
+        assertEquals(15, g2.classification)
+        val g3 = grades.next()
+        assertEquals("PC", g3.subject)
+        assertEquals(19, g3.classification)
+        assertFalse { grades.hasNext() }
+    }
+
+    @Test
+    fun `test parse with invalid date`() {
+        val yaml = """
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+                birth: 1999-12-a
+            """.trimIndent()
+        assertThrows<DateTimeParseException> {
+            YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
+        }
+    }
+
 }
 
 
@@ -450,6 +525,7 @@ const val yamlSequenceOfStudents = """
                 street: Rua Rosa
                 nr: 78
                 city: Lisbon
+              birth: 1999-12-12
               from: Oleiros
               grades:
                 - 
@@ -468,6 +544,7 @@ const val yamlSequenceOfStudents = """
                 street: Rua Azul
                 nr: 12
                 city: Porto
+              birth: 1999-12-15
               from: Tamega
               grades:
                 -
