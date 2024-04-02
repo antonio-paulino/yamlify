@@ -47,7 +47,6 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
 
         // Check for duplicate properties
         val duplicateProps = properties.groupBy { it.second }.mapNotNull {
-            // If it's (the property) value has more than one element, it is a duplicate
             if (it.value.size > 1) it
             else null
         }
@@ -89,15 +88,15 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
     private fun castValueToType(value: Any, type: KType): Any {
         val arg = value as? String
         return when (type.classifier) {
-            String::class -> arg!!  // If the type is a string, return the value as is
-            Int::class -> arg!!.toInt() // If the type is an int, return the value as an int
-            Long::class -> arg!!.toLong()   // If the type is a long, return the value as a long
-            List::class -> getIterableValue(value, type)    // If the type is a list, use getIterableValue to get the list
-            Set::class -> getIterableValue(value, type).toSet() // If the type is a set, use getIterableValue to get the set
-            Array::class -> getIterableValue(value, type).toTypedArray()    // If the type is an array, use getIterableValue to get the array
-            Sequence::class -> getIterableValue(value, type).asSequence()   // If the type is a sequence, use getIterableValue to get the sequence
-            ArrayList::class -> ArrayList(getIterableValue(value, type))    // If the type is an ArrayList, use getIterableValue to get the list and create a new ArrayList
-            else -> yamlParser(type.classifier as KClass<*>).newInstance(value as Map<String, Any>) // If the type is a custom type, use the yamlParser to get the instance
+            String::class -> arg!!
+            Int::class -> arg!!.toInt()
+            Long::class -> arg!!.toLong()
+            List::class -> getIterableValue(value, type)
+            Set::class -> getIterableValue(value, type).toSet()
+            Array::class -> getIterableValue(value, type).toTypedArray()
+            Sequence::class -> getIterableValue(value, type).asSequence()
+            ArrayList::class -> ArrayList(getIterableValue(value, type))
+            else -> yamlParser(type.classifier as KClass<*>).newInstance(value as Map<String, Any>)
         }
     }
     private fun getIterableValue(value: Any, type: KType): List<Any> {
@@ -107,12 +106,11 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
 
         // Iterate over the list
         return list.map {
-            // If the type is a list, use getIterableValue to get the list
+            // If the type is a list, recursively call getIterableValue to instance its elements
             if (it is List<*>)
                 getIterableValue(it, type.arguments.first().type!!)
-            // If the type is a not a list
             else
-                // If the type is a custom type, use the yamlParser to get the instance
+                // Use the yamlParser to get the instances of the list element type
                 yamlParser(type.arguments.first().type!!.classifier as KClass<*>)
                     .newInstance((it as Map<String, Any>))
         }
