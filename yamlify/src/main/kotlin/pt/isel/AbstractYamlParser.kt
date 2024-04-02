@@ -49,10 +49,10 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
         val yamlObjects = getObjectList(yamlText)
         // Create a list to hold the objects
         val resultList = mutableListOf<T>()
-        // And then, iterate over the list of objects
+        // Iterate over the list of objects
         yamlObjects.forEach {
             // Check if the object is a list or a single object
-            if (getObjectList(it).size > 1) //check for nested lists
+            if (getObjectList(it).size > 1)
                 // If it is a list, recursively call getListValues
                 // to handle the nested list
                 resultList.add(getListValues(it.reader()) as T)
@@ -100,22 +100,20 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
             when {
                 // When the map already contains the key
-                // Throw an exception
+                // Throw an exception due to duplicate keys
                 map.containsKey(parts[0]) -> throw IllegalArgumentException("Duplicate key ${parts[0]} for ${type.simpleName}")
                 // When the line has two parts (key and value)
                 // Add the key and the value to the map
                 parts.size == 2 -> map[parts[0]] = parts[1]
-                // When the line is a scalar (has a dash)
-                // Add the key and the value to the map
+                // When the line is a scalar
+                // Add the value to the map
                 isScalar(line) -> map[parts[0]] = line.split("-").last().trim()
                 // When the line is a list
                 else -> {
                     // Get the next line
-                    // i, because it was incremented before
                     val nextLine = lines[i]
                     // Get the lines that are indented
                     val indentedLines = getLinesSequence(lines, i, indentation)
-
                     // Save as the value of the key,
                     // The result of the recursive call to getObjectValues
                     map[parts[0]] = if (nextLine.contains("-")) {
@@ -125,8 +123,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                         // If the next line does not contain a dash, it is an object
                         getObjectValues(indentedLines.joinToString("\n").reader())
                     }
-
-                    // Increment the index by the number of indented lines
+                    // Increment the index by the number of indented lines to skip over them
                     i += indentedLines.size
                 }
             }
@@ -137,7 +134,6 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
     // Check if a line is a scalar
     private fun isScalar(line: String): Boolean {
-        // Conditions: The line must not be blank, must contain a dash, and must not be only a dash
         return line.filter { it != '-' }.isNotBlank() && line.contains("-")
     }
 
@@ -177,30 +173,28 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                     // If it is not valid, throw an exception
                     throw IllegalArgumentException("Invalid indentation at $line")
 
-                // Check if the line is a scalar
-                // To do this, check if the line contains a dash
+                // Check for list item separators
                 if (line[objIndentation] == '-') {
                     // If it is a scalar, add the line to the list
                     if (isScalar(line)) {
                         list.add(line)
                     // If it is not a scalar
-                    // Save the current lines in the list
-                    // And clear the current lines
+                    // Add the current object lines to the list
                     } else {
                         list.add(currLines.joinToString("\n"))
                         currLines.clear()
                     }
                 } else {
-                    // If the line is not a scalar,
-                    // Add the line to the current lines
+                    // If there is no list item separator
+                    // Add the line to the current object lines
                     currLines.add(line)
                 }
             }
         }
 
-        // Add the last set of lines to the list
+        // Add the last object to the list
         list.add(currLines.joinToString("\n"))
-        // End filtering the empty lines
+        // End by filtering any empty objects
         return list.filter { it.isNotBlank() }
     }
 }
