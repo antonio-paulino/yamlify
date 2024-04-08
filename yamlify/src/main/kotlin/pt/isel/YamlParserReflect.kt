@@ -31,6 +31,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
      * Creates a new instance of T through the first constructor
      * that has all the mandatory parameters in the map and optional parameters for the rest.
      */
+
     override fun newInstance(args: Map<String, Any>): T {
         val constructor = type.constructors.first()
 
@@ -96,13 +97,25 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         val arg = value as? String
         return when (type.classifier) {
             String::class -> arg!!
+            Char::class -> arg!!.first()
             Int::class -> arg!!.toInt()
             Long::class -> arg!!.toLong()
+            Double::class -> arg!!.toDouble()
+            Float::class -> arg!!.toFloat()
+            Boolean::class -> arg!!.toBoolean()
+            Byte::class -> arg!!.toByte()
+            Short::class -> arg!!.toShort()
+            UByte::class -> arg!!.toUByte()
+            UShort::class -> arg!!.toUShort()
+            UInt::class -> arg!!.toUInt()
+            ULong::class -> arg!!.toULong()
             List::class -> getIterableValue(value, type)
             Set::class -> getIterableValue(value, type).toSet()
             Array::class -> getIterableValue(value, type).toTypedArray()
             Sequence::class -> getIterableValue(value, type).asSequence()
             ArrayList::class -> ArrayList(getIterableValue(value, type))
+            HashSet::class -> HashSet(getIterableValue(value, type))
+            Collection::class -> getIterableValue(value, type)
             else -> yamlParser(type.classifier as KClass<*>).newInstance(value as Map<String, Any>)
         }
     }
