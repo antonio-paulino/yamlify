@@ -8,8 +8,9 @@ import pt.isel.YamlConvert
 /**
  * A YamlParser that uses reflection to parse objects.
  */
-class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlParser<T>(type) {
+class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>) : AbstractYamlParser<T>(type) {
 
+    private val constructor = type.constructors.first()
     companion object {
         /**
          *Internal cache of YamlParserReflect instances.
@@ -33,8 +34,6 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
      */
 
     override fun newInstance(args: Map<String, Any>): T {
-        val constructor = type.constructors.first()
-
         // If the constructor has no parameters, return a new instance of the type
         if (constructor.parameters.isEmpty()) {
             return castValueToType(args.values.first(), type.starProjectedType) as T
@@ -46,10 +45,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         }
 
         // Check for duplicate properties
-        val duplicateProps = properties.groupBy { it.second }.mapNotNull {
-            if (it.value.size > 1) it
-            else null
-        }
+        val duplicateProps = properties.groupBy { it.second }.filter { it.value.size > 1 }
 
         // If there are duplicate properties, throw an exception with the names of the properties
         if (duplicateProps.isNotEmpty()) {
@@ -60,8 +56,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
         // Get the constructor arguments
         val constructorArgs = properties.mapNotNull { (srcProp, destProp) ->
             destProp?.run {
-                val value = args[srcProp] // Get the value of the property
-                val type = destProp.type // Get the type of the property
+                val value = args[srcProp]
 
                 if (destProp.annotations.any { it is YamlConvert }) {
                     val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
@@ -75,7 +70,6 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
             }
         }
         return constructor.callBy(constructorArgs.toMap())
-
     }
 
     // Get the first constructor parameter that matches the property

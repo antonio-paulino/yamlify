@@ -4,5 +4,5 @@ class Classroom(
     @YamlArg("classroom_id")
     val id: String,
     @YamlArg("class_students")
-    val students: Sequence<Student>
+    val students: List<Student>
 )
