@@ -1,6 +1,7 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
+import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -463,6 +464,7 @@ class YamlParserReflectTest {
         assertEquals("Maria Candida", st.name)
         assertEquals(873435, st.nr)
         assertEquals("Oleiros", st.from)
+        assertEquals(st.birth, LocalDate.of(1999, 12, 15))
     }
 
     @Test
@@ -498,6 +500,7 @@ class YamlParserReflectTest {
         assertEquals("PC", g3.subject)
         assertEquals(19, g3.classification)
         assertFalse { grades.hasNext() }
+        assertEquals(st.birth, LocalDate.of(1999, 12, 15))
     }
 
     @Test

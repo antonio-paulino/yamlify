@@ -32,8 +32,6 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
      * that has all the mandatory parameters in the map and optional parameters for the rest.
      */
     override fun newInstance(args: Map<String, Any>): T {
-
-        // Get the first constructor of the type (the primary constructor)
         val constructor = type.constructors.first()
 
         // If the constructor has no parameters, return a new instance of the type
@@ -60,18 +58,14 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
 
         // Get the constructor arguments
         val constructorArgs = properties.mapNotNull { (srcProp, destProp) ->
-            destProp?.let { destProp ->
+            destProp?.run {
                 val value = args[srcProp] // Get the value of the property
                 val type = destProp.type // Get the type of the property
-                // Check if the property has a YamlConvert annotation
+
                 if (destProp.annotations.any { it is YamlConvert }) {
-                    // Get the YamlConvert annotation object
                     val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
-                    // Get the object instance of the custom parser
                     val customParserInstance = customParser.parser.objectInstance
-                    // Parse the value using the custom parser
                     val parsed = customParserInstance?.parseObject(value.toString().reader())
-                    // Format: property : parsed value
                     destProp to parsed
                 } else {
                     val castedValue = value?.let { castValueToType(it, type) } // Cast the value to the suitable type
@@ -79,8 +73,8 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
                 }
             }
         }
-        // Return a new instance of the type using the constructor with the arguments
         return constructor.callBy(constructorArgs.toMap())
+
     }
 
     // Get the first constructor parameter that matches the property
