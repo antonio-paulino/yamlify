@@ -66,7 +66,7 @@ class YamlParserReflect<T : Any>(private val type: KClass<T>) : AbstractYamlPars
                 if (destProp.annotations.any { it is YamlConvert }) {
                     val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
                     val customParserInstance = customParser.parser.objectInstance
-                    val parsed = customParserInstance?.parseObject(value.toString().reader())
+                    val parsed = customParserInstance?.convertToObject(value.toString())
                     destProp to parsed
                 } else {
                     val castedValue = value?.let { castValueToType(it, type) } // Cast the value to the suitable type

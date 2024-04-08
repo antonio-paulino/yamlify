@@ -10,17 +10,13 @@ class Student @JvmOverloads constructor (
     @YamlArg("city")
     val from: String,
     @YamlConvert(YamlToDate::class)
-    val birth: LocalDate,
+    val birth: LocalDate? = null,
     val address: Address? = null,
     val grades: List<Grade> = emptyList()
 )
 
-object YamlToDate : YamlParser<LocalDate> {
-    override fun parseObject(yaml: Reader): LocalDate {
-        return LocalDate.parse(yaml.readText())
-    }
-
-    override fun parseList(yaml: Reader): List<LocalDate> {
-        return yaml.readText().lines().map { LocalDate.parse(it) }
+object YamlToDate : YamlConverter<LocalDate> {
+    override fun convertToObject(input: String): LocalDate {
+        return LocalDate.parse(input)
     }
 }
