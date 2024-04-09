@@ -2,7 +2,6 @@ package pt.isel
 
 import kotlin.reflect.*
 import kotlin.reflect.full.starProjectedType
-import pt.isel.YamlConvert
 
 
 /**
@@ -40,36 +39,33 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
         }
 
         // Map the properties to the constructor parameters
-        val properties = args.keys.map { prop ->
-            prop to matchParameter(prop, constructor.parameters)
-        }
-
-        // Check for duplicate properties
-        val duplicateProps = properties.groupBy { it.second }.filter { it.value.size > 1 }
-
-        // If there are duplicate properties, throw an exception with the names of the properties
-        if (duplicateProps.isNotEmpty()) {
-            val names = duplicateProps.map { prop -> prop.key!!.name to prop.value.map { it.first } }
-            throw IllegalArgumentException("Duplicate properties: $names")
+        val properties = mutableListOf<Pair<String,KParameter>>()
+        args.keys.forEach { srcProp ->
+            val param = matchParameter(srcProp, constructor.parameters)
+            if (param != null) {
+                if (properties.any { it.second == param }) {
+                    throw IllegalArgumentException("Duplicate parameter: ${param.name}")
+                }
+                properties.add(Pair(srcProp, param))
+            }
         }
 
         // Get the constructor arguments
-        val constructorArgs = properties.mapNotNull { (srcProp, destProp) ->
-            destProp?.run {
+        val constructorArgs = properties.associateBy({ it.second!! }, { (srcProp, destProp) ->
+            destProp.run {
                 val value = args[srcProp]
 
                 if (destProp.annotations.any { it is YamlConvert }) {
                     val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
                     val customParserInstance = customParser.parser.objectInstance
-                    val parsed = customParserInstance?.convertToObject(value.toString())
-                    destProp to parsed
+                    customParserInstance?.convertToObject(value.toString())
                 } else {
-                    val castedValue = value?.let { castValueToType(it, type) } // Cast the value to the suitable type
-                    destProp to castedValue
+                    value?.let { castValueToType(it, type) } // Cast the value to the suitable type
                 }
             }
-        }
-        return constructor.callBy(constructorArgs.toMap())
+        })
+
+        return constructor.callBy(constructorArgs)
     }
 
     // Get the first constructor parameter that matches the property
