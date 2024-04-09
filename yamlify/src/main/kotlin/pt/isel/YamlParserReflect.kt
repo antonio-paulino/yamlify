@@ -10,6 +10,9 @@ import kotlin.reflect.full.starProjectedType
 class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>) : AbstractYamlParser<T>(type) {
 
     private val constructor = type.constructors.first()
+
+    private val constructorProps = constructor.parameters.associate { it.name to it.type.classifier }
+
     companion object {
         /**
          *Internal cache of YamlParserReflect instances.
@@ -31,11 +34,10 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
      * Creates a new instance of T through the first constructor
      * that has all the mandatory parameters in the map and optional parameters for the rest.
      */
-
     override fun newInstance(args: Map<String, Any>): T {
         // If the constructor has no parameters, return a new instance of the type
         if (constructor.parameters.isEmpty()) {
-            return castValueToType(args.values.first(), type.starProjectedType) as T
+            return castSimpleType(args.values.first(), type.starProjectedType) as T
         }
 
         // Map the properties to the constructor parameters
@@ -51,7 +53,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
         }
 
         // Get the constructor arguments
-        val constructorArgs = properties.associateBy({ it.second!! }, { (srcProp, destProp) ->
+        val constructorArgs = properties.associateBy({ it.second }, { (srcProp, destProp) ->
             destProp.run {
                 val value = args[srcProp]
 
@@ -60,7 +62,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
                     val customParserInstance = customParser.parser.objectInstance
                     customParserInstance?.convertToObject(value.toString())
                 } else {
-                    value?.let { castValueToType(it, type) } // Cast the value to the suitable type
+                    value?.let { castValueToParamType(it, destProp) }
                 }
             }
         })
@@ -68,24 +70,40 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
         return constructor.callBy(constructorArgs)
     }
 
-    // Get the first constructor parameter that matches the property
-    private fun matchParameter(
-        // The source property name
-        srcProp: String,
-        // The constructor parameters list
-        ctorParameters: List<KParameter>) : KParameter?{
-        // Return the first parameter that matches the property
+    private fun matchParameter(srcProp: String, ctorParameters: List<KParameter>) : KParameter? {
         return ctorParameters.firstOrNull { arg ->
-            // Check if the property name is equal to the parameter name
-            // or if the property has a YamlArg annotation with the same name as the parameter
             srcProp == arg.name || arg.annotations.any { it is YamlArg && it.yamlName == srcProp }
         }
     }
 
-    // Cast the given value to the suitable type
-    private fun castValueToType(value: Any, type: KType): Any {
-        val arg = value as? String
+    // Casts a simple type to the desired type
+    // for when the type has no constructor parameters
+    private fun castSimpleType(value: Any, type: KType): Any? {
         return when (type.classifier) {
+            String::class -> value.toString()
+            Char::class -> value.toString().first()
+            Int::class -> value.toString().toInt()
+            Long::class -> value.toString().toLong()
+            Double::class -> value.toString().toDouble()
+            Float::class -> value.toString().toFloat()
+            Boolean::class -> value.toString().toBoolean()
+            Byte::class -> value.toString().toByte()
+            Short::class -> value.toString().toShort()
+            UByte::class -> value.toString().toUByte()
+            UShort::class -> value.toString().toUShort()
+            UInt::class -> value.toString().toUInt()
+            ULong::class -> value.toString().toULong()
+            else -> null
+        }
+    }
+
+    // Casts a value to the parameter type
+    // Used when the type has a constructor with parameters
+    private fun castValueToParamType(value: Any, parameter: KParameter): Any {
+        val paramType = parameter.type
+        val arg = value as? String
+        val classifier = constructorProps[parameter.name!!]
+        return when (classifier) {
             String::class -> arg!!
             Char::class -> arg!!.first()
             Int::class -> arg!!.toInt()
@@ -99,16 +117,17 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
             UShort::class -> arg!!.toUShort()
             UInt::class -> arg!!.toUInt()
             ULong::class -> arg!!.toULong()
-            List::class -> getIterableValue(value, type)
-            Set::class -> getIterableValue(value, type).toSet()
-            Array::class -> getIterableValue(value, type).toTypedArray()
-            Sequence::class -> getIterableValue(value, type).asSequence()
-            ArrayList::class -> ArrayList(getIterableValue(value, type))
-            HashSet::class -> HashSet(getIterableValue(value, type))
-            Collection::class -> getIterableValue(value, type)
-            else -> yamlParser(type.classifier as KClass<*>).newInstance(value as Map<String, Any>)
+            List::class -> getIterableValue(value, paramType)
+            Set::class -> getIterableValue(value, paramType).toSet()
+            Array::class -> getIterableValue(value, paramType).toTypedArray()
+            Sequence::class -> getIterableValue(value, paramType).asSequence()
+            ArrayList::class -> ArrayList(getIterableValue(value, paramType))
+            HashSet::class -> HashSet(getIterableValue(value, paramType))
+            Collection::class -> getIterableValue(value, paramType)
+            else -> yamlParser(classifier as KClass<*>).newInstance(value as Map<String, Any>)
         }
     }
+
     private fun getIterableValue(value: Any, type: KType): List<Any> {
 
         // Cast the value to a List of Any

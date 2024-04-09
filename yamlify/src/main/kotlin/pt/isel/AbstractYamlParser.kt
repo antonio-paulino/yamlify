@@ -17,26 +17,27 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
     // Parse the yaml text into an object
     final override fun parseObject(yaml: Reader): T =
-        newInstance(
-            getObjectValues(
-                yaml.useLines {
+        yaml.useLines {
+            newInstance(
+                getObjectValues(
                     it.filter { line ->
                         line.isNotBlank()
                     }.toList()
-                }
+                )
             )
-        )
+        }
 
     // Parse the yaml text into a list of objects
     final override fun parseList(yaml: Reader): List<T> =
-        createObjectsFromList(
-            getListValues(
-                yaml.useLines {
+        yaml.useLines {
+            createObjectsFromList(
+                getListValues(
                     it.filter { line ->
                         line.isNotBlank()
                     }.toList()
-                }
-            ))
+                )
+            )
+        }
 
     // Creates a list of defined objects from a list of objects
     private fun createObjectsFromList(objectsList: List<Any>): List<T> {
