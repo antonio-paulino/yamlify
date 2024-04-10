@@ -11,7 +11,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
 
     private val constructor = type.constructors.first()
 
-    private val constructorProps = constructor.parameters.associate { it.name to it.type.classifier }
+    private val constructorProps : MutableMap<String, KClass<*>> = mutableMapOf()
 
     companion object {
         /**
@@ -76,10 +76,17 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
         }
     }
 
+    private fun getClassifier(name: String, type: KType): KClass<*> {
+        return constructorProps.getOrPut(name) {
+            type.classifier as KClass<*>
+        }
+    }
+
     // Casts a simple type to the desired type
     // for when the type has no constructor parameters
     private fun castSimpleType(value: Any, type: KType): Any? {
-        return when (type.classifier) {
+        val classifier = getClassifier(this.type.simpleName!!, type)
+        return when (classifier) {
             String::class -> value.toString()
             Char::class -> value.toString().first()
             Int::class -> value.toString().toInt()
@@ -102,7 +109,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
     private fun castValueToParamType(value: Any, parameter: KParameter): Any {
         val paramType = parameter.type
         val arg = value as? String
-        val classifier = constructorProps[parameter.name!!]
+        val classifier = getClassifier(parameter.name!!, paramType)
         return when (classifier) {
             String::class -> arg!!
             Char::class -> arg!!.first()
@@ -124,7 +131,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
             ArrayList::class -> ArrayList(getIterableValue(value, paramType))
             HashSet::class -> HashSet(getIterableValue(value, paramType))
             Collection::class -> getIterableValue(value, paramType)
-            else -> yamlParser(classifier as KClass<*>).newInstance(value as Map<String, Any>)
+            else -> yamlParser(classifier).newInstance(value as Map<String, Any>)
         }
     }
 
@@ -139,7 +146,7 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
             if (it is List<*>)
                 getIterableValue(it, type.arguments.first().type!!)
             else
-                // Use the yamlParser to get the instances of the list element type
+            // Use the yamlParser to get the instances of the list element type
                 yamlParser(type.arguments.first().type!!.classifier as KClass<*>)
                     .newInstance((it as Map<String, Any>))
         }
