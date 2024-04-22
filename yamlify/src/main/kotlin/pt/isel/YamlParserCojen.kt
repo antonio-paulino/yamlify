@@ -275,13 +275,17 @@ open class YamlParserCojen<T : Any>(
             // create a new instance of the class
             val obj = newInstance.`var`(type).set(null)
             value.ifNe(null) {
+                // Create the parser for the type before creating an instance of it
+                val parser = YamlParserCojen.yamlParser((type as Class<T>).kotlin) as YamlParserCojen
                 val map = value.cast(Map::class.java)
-                val size = map.invoke("size")
-                val parser = newInstance.this_()
-                    .invoke("javaYamlParser", type, size)
-                    .invoke("newInstance", map)
-                    .cast(type)
-                obj.set(parser)
+                obj.set(
+                    // overhead of creating a new instance of the parser in the local method is less than
+                    // the overhead of trying to find the parser in the cache of by using
+                    // this class instance
+                    newInstance.new_(parser::class.java, parser.type, parser.nrOfInitArgs)
+                        .invoke("newInstance", map)
+                        .cast(type)
+                )
             }
             return obj
         }
