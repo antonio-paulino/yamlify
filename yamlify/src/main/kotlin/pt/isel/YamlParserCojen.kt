@@ -94,8 +94,8 @@ open class YamlParserCojen<T : Any>(
 
     // Used to get a new dynamic parser for a type
     // Called by dynamically generated parsers
-    fun javaYamlParser(type: Class<T>, nrOfInitArgs: Int): YamlParserCojen<T> {
-        return yamlParser(type.kotlin, nrOfInitArgs) as YamlParserCojen<T>
+    fun javaYamlParser(type: Class<T>, nrOfInitArgs: Int): AbstractYamlParser<T> {
+        return yamlParser(type.kotlin, nrOfInitArgs)
     }
 
     private fun buildNewInstanceMethod(newInstance: MethodMaker, type: KClass<*>, nrOfInitArgs: Int) {
@@ -131,7 +131,7 @@ open class YamlParserCojen<T : Any>(
 
                 val value = args.invoke("get", name)
 
-                if (!it.hasDefaultValue(type.java as Class<T>)) {
+                if (!it.hasDefaultValue(type.java as Class<*>)) {
                     value.ifEq(null) {
                         newInstance.new_(IllegalArgumentException::class.java, "Missing parameter: ${it.name}")
                             .throw_()
@@ -167,7 +167,7 @@ open class YamlParserCojen<T : Any>(
 
     }
 
-    private fun Parameter.hasDefaultValue(type: Class<T>) : Boolean {
+    private fun Parameter.hasDefaultValue(type: Class<*>) : Boolean {
         val constructor = type.kotlin.primaryConstructor!!.javaConstructor!!
         val position = constructor.parameters.indexOfFirst {
             it.type == this.type && it.type.name == this.type.name
@@ -276,7 +276,7 @@ open class YamlParserCojen<T : Any>(
             val obj = newInstance.`var`(type).set(null)
             value.ifNe(null) {
                 // Create the parser for the type before creating an instance of it
-                val parser = YamlParserCojen.yamlParser((type as Class<T>).kotlin) as YamlParserCojen
+                val parser = YamlParserCojen.yamlParser((type as Class<*>).kotlin) as YamlParserCojen
                 val map = value.cast(Map::class.java)
                 obj.set(
                     // overhead of creating a new instance of the parser in the local method is less than
