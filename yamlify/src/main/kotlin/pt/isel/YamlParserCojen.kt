@@ -59,13 +59,6 @@ open class YamlParserCojen<T : Any>(
             .public_()
             .extend(YamlParserCojen::class.java)
 
-        val newInstance = cm
-            .addMethod(Object::class.java, "newInstance", Map::class.java)
-            .override()
-            .public_()
-
-
-
         val constructor = cm
             .addConstructor(Class::class.java, Integer::class.java)
             .public_()
@@ -78,6 +71,7 @@ open class YamlParserCojen<T : Any>(
             .addField(Int::class.java, "nrOfInitArgs")
             .private_()
             .final_()
+
         constructor
             .field(typeField.name())
             .set(constructor.param(0))
@@ -87,8 +81,10 @@ open class YamlParserCojen<T : Any>(
         constructor
             .invokeSuperConstructor(constructor.param(0), constructor.param(1))
 
-
-
+        val newInstance = cm
+            .addMethod(Object::class.java, "newInstance", Map::class.java)
+            .override()
+            .public_()
 
         buildNewInstanceMethod(newInstance, type.kotlin, nrOfInitArgs)
 
