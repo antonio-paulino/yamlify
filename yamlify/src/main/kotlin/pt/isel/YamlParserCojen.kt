@@ -25,8 +25,9 @@ open class YamlParserCojen<T : Any>(
         private val yamlParsers: MutableMap<String, YamlParserCojen<*>> = mutableMapOf()
 
         private fun parserName(type: KClass<*>, nrOfInitArgs: Int): String {
-            return "${type.simpleName}Parser$nrOfInitArgs"
+            return "YamlParser${type.simpleName}$nrOfInitArgs"
         }
+
         /**
          * Creates a YamlParser for the given type using Cojen Maker if it does not already exist.
          * Keep it in an internal cache.
@@ -276,7 +277,7 @@ open class YamlParserCojen<T : Any>(
             value.ifNe(null) {
                 val map = value.cast(Map::class.java)
                 val size = map.invoke("size")
-                val parser = newInstance.new_(YamlParserCojen::class.java, type, size)
+                val parser = newInstance.this_()
                     .invoke("javaYamlParser", type, size)
                     .invoke("newInstance", map)
                     .cast(type)
