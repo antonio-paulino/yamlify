@@ -8,10 +8,10 @@ class Student @JvmOverloads constructor (
     val nr: Int,
     @YamlArg("city of birth")
     val from: String,
+    val address: Address? = null,
+    val grades: List<Grade> = emptyList(),
     @YamlConvert(YamlToDate::class)
     val birth: LocalDate? = null,
-    val address: Address? = null,
-    val grades: List<Grade> = emptyList()
 )
 
 
