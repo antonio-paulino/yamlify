@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 class ClassGrades(@YamlConvert(YamlToListGrade::class)val grades: List<Grade> = emptyList())
 
-object YamlToListGrade : YamlConverter<List<Grade>> {
+class YamlToListGrade : YamlConverter<List<Grade>> {
     override fun convertToObject(input: String):List<Grade> {
         return input.removeSurrounding("[", "]").removeSurrounding("{", "}").split("}, {").map{
             val parts = it.split(", ")

@@ -1,6 +1,7 @@
 package pt.isel
 
 import kotlin.reflect.*
+import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.starProjectedType
 
 
@@ -59,8 +60,8 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
 
                 if (destProp.annotations.any { it is YamlConvert }) {
                     val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
-                    val customParserInstance = customParser.parser.objectInstance
-                    customParserInstance?.convertToObject(value.toString())
+                    val customParserInstance = customParser.parser.createInstance()
+                    customParserInstance.convertToObject(value.toString())
                 } else {
                     value?.let { castValueToParamType(it, destProp) }
                 }

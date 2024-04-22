@@ -26,7 +26,6 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                 )
             )
         }
-
     // Parse the yaml text into a list of objects
     final override fun parseList(yaml: Reader): List<T> =
         yaml.useLines {
@@ -56,15 +55,14 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
     // Get the list of objects from yaml text
     private fun getListValues(input: List<String>): List<Any> {
+        if (input.isEmpty()) throw IllegalArgumentException("Empty list")
         // Read the text from the reader
         // this will return a string with the yaml content
         // Get the list of objects from the yaml text
         val yamlObjects = getObjectList(input)
         // Iterate over the list of objects
-        return yamlObjects.map {
+        return yamlObjects.map { lines ->
             // Check if the object is a list or a single object
-            val lines = it.split("\n")
-
             if (isList(lines))
                 // If it is a list, recursively call getListValues
                 // to handle the nested list
@@ -83,6 +81,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     // Get the values of the object from the yaml text
     private fun getObjectValues (lines: List<String>): Map<String, Any> {
 
+        if (lines.isEmpty()) throw IllegalArgumentException("Empty object")
         // Create a mutable map to hold the results
         val map = mutableMapOf<String, Any>()
         // index to iterate over the lines
@@ -91,9 +90,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
         // In other words, the number of spaces before the first key
         val objIndentation = getIndentation(lines.first())
 
-        // Iterate over the lines
         while (i < lines.size) {
-
             // Get the current line
             val line = lines[i++]
 
@@ -101,11 +98,11 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             val indentation = getIndentation(line)
 
             // Check if the indentation is valid
-            if (indentation != objIndentation) throw IllegalArgumentException("Invalid indentation at: ${line.trim()}")
+            if (indentation != objIndentation) throw IllegalArgumentException("Invalid indentation at: ${line.fastTrim()}")
 
             // Split the line by the colon
             // This returns an array with the key and the value
-            val parts = line.split(":").map { it.trim() }
+            val parts = getLineParts(line)
 
             when {
                 // When the map already contains the key
@@ -113,16 +110,16 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                 map.containsKey(parts[0]) -> throw IllegalArgumentException("Duplicate key ${parts[0]} for ${type.simpleName}")
                 // When the line has two parts (key and value)
                 // Add the key and the value to the map
-                parts.size == 2 && parts[1].isNotBlank() -> map[parts[0]] = parts[1]
+                parts[1].isNotEmpty() -> map[parts[0]] = parts[1]
                 // When the line is a scalar
                 // Add the value to the map
-                isScalar(line) -> map[parts[0]] = line.split("-").last().trim()
+                isScalar(line) -> map[parts[0]] = line.split("-").last().fastTrim()
                 // When the line is a list
                 else -> {
                     // Get the next line
                     val nextLine = lines[i]
                     // Get the lines that are indented
-                    val indentedLines = getLinesSequence(lines, i, indentation)
+                    val indentedLines = getLinesSequence(lines, i, objIndentation)
                     // Save as the value of the key,
                     // The result of the recursive call to getObjectValues
                     map[parts[0]] = if (nextLine.contains("-")) {
@@ -136,14 +133,40 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                     i += indentedLines.size
                 }
             }
-
         }
         return map
     }
 
+    private fun getLineParts(line: String): List<String> {
+        val parts = line.split(":")
+        return if (parts.size == 1) {
+            listOf(parts[0].fastTrim(), "")
+        } else {
+            listOf(parts[0].fastTrim(), parts[1].fastTrim())
+        }
+    }
+    private fun String.fastTrim(): String {
+        var start = 0
+        var end = length - 1
+        while (start <= end && this[start] == ' ') start++
+        while (end >= start && this[end] == ' ') end--
+        return this.substring(start, end + 1)
+    }
+
     // Check if a line is a scalar
     private fun isScalar(line: String): Boolean {
-        return line.filter { it != '-' }.isNotBlank() && line.contains("-")
+        var dashFound = false
+        for (i in line.indices) {
+            if (line[i] == ' ') {
+                continue
+            }
+            if (line[i] == '-') {
+                dashFound = true
+            } else {
+                return dashFound
+            }
+        }
+        return false
     }
 
     // Get the lines that are indented
@@ -152,23 +175,23 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
         var i = start
         while (i < lines.size) {
             val line = lines[i++]
-            if (getIndentation(line) <= indentation) break
+            if (getIndentation(line) == indentation) {
+                return result
+            }
             result.add(line)
         }
         return result
     }
 
     // Get the list of objects from the yaml text
-    private fun getObjectList(lines: List<String> ): List<String>  {
+    private fun getObjectList(lines: List<String> ): List<List<String>>  {
 
         // Get the indentation of the object
         val objIndentation = getIndentation(lines.first())
-
         // Create a mutable list to hold the results
-        val list = mutableListOf<String>()
-        // Create a mutable list to hold the current lines
-        val currLines = mutableListOf<String>()
-
+        val objects = mutableListOf<List<String>>()
+        // Create a mutable list to hold the current object
+        var currObject = mutableListOf<String>()
         // Iterate over the lines
         lines.forEach { line ->
             // Get the indentation of the current line
@@ -184,29 +207,37 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             if (line[objIndentation] == '-') {
                 // If it is a scalar, add the line to the list
                 if (isScalar(line)) {
-                    list.add(line)
+                    objects.add(listOf(line))
                     // If it is not a scalar
                     // Add the current object lines to the list
                 } else {
-                    list.add(currLines.joinToString("\n"))
-                    currLines.clear()
+                    if (currObject.isNotEmpty()) {
+                        objects.add(currObject.toList())
+                        currObject = mutableListOf()
+                    }
                 }
             } else {
                 // If there is no list item separator
                 // Add the line to the current object lines
-                currLines.add(line)
+                if (line.isNotBlank()) {
+                    currObject.add(line)
+                }
             }
         }
         // Add the last object to the list
-        list.add(currLines.joinToString("\n"))
+        if (currObject.isNotEmpty())
+             objects.add(currObject.toList())
         // End by filtering any empty objects
-        return list.filter { it.isNotBlank() }
+        return objects
     }
 
     private fun getIndentation(line: String): Int {
-        var count = 0
-        while (line[count] == ' ') count++
-        return count
+        for (i in line.indices) {
+            if (line[i] != ' ') {
+                return i
+            }
+        }
+        return line.length
     }
 
 }
