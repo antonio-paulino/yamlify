@@ -61,12 +61,13 @@ open class YamlParserCojen<T : Any>(
 
         val newInstance = cm
             .addMethod(Object::class.java, "newInstance", Map::class.java)
+            .override()
             .public_()
 
 
 
         val constructor = cm
-            .addConstructor(Class::class.java,Int::class.java)
+            .addConstructor(Class::class.java, Integer::class.java)
             .public_()
 
         val typeField = cm
@@ -239,10 +240,6 @@ open class YamlParserCojen<T : Any>(
         }
     }
 
-    private fun castType(newInstance: MethodMaker, value: Variable, type: Type): Any? {
-        TODO()
-    }
-
     private fun isSimpleType(type: Type): Boolean {
         // check if it is a primitive type
         if ((type as Class<*>).isPrimitive) {
@@ -260,6 +257,38 @@ open class YamlParserCojen<T : Any>(
         }
     }
 
+    private fun castType(newInstance: MethodMaker, value: Variable, type: Type): Any? {
+        if (isSimpleType(type)) {
+            val strValue = value.cast(String::class.java)
+            return when (type) {
+                String::class.java -> value.cast(String::class.java)
+                Int::class.java -> newInstance.`var`(Integer::class.java).invoke("parseInt", strValue)
+                Long::class.java -> newInstance.`var`(Long::class.java).invoke("parseLong", strValue)
+                Short::class.java -> newInstance.`var`(Short::class.java).invoke("parseShort", strValue)
+                Byte::class.java -> newInstance.`var`(Byte::class.java).invoke("parseByte", strValue)
+                Integer::class.java -> newInstance.`var`(Integer::class.java).invoke("parseInt", strValue)
+                Char::class.java -> newInstance.`var`(Char::class.java).invoke("charAt", 0)
+                Double::class.java -> newInstance.`var`(Double::class.java).invoke("parseDouble", strValue)
+                Float::class.java -> newInstance.`var`(Float::class.java).invoke("parseFloat", strValue)
+                Boolean::class.java -> newInstance.`var`(Boolean::class.java).invoke("parseBoolean", strValue)
+                else -> throw IllegalArgumentException("Unsupported type: $type")
+            }
+        }
+        else {
+            // create a new instance of the class
+            val obj = newInstance.`var`(type).set(null)
+            value.ifNe(null) {
+                val map = value.cast(Map::class.java)
+                val size = map.invoke("size")
+                val parser = newInstance.new_(YamlParserCojen::class.java, type, size)
+                    .invoke("javaYamlParser", type, size)
+                    .invoke("newInstance", map)
+                    .cast(type)
+                obj.set(parser)
+            }
+            return obj
+        }
+    }
 
 }
 
