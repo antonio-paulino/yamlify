@@ -4,20 +4,30 @@ import org.cojen.maker.ClassMaker
 import org.cojen.maker.MethodMaker
 import org.cojen.maker.Variable
 import java.lang.reflect.Parameter
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
+import java.lang.reflect.WildcardType
 import kotlin.reflect.KClass
+import kotlin.jvm.*
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.jvm.javaConstructor
+
 /**
  * A YamlParser that uses Cojen Maker to generate a parser.
  */
 open class YamlParserCojen<T : Any>(
-    private val type: KClass<T>,
+    private val type: Class<T>,
     private val nrOfInitArgs: Int)
-: AbstractYamlParser<T>(type) {
+: AbstractYamlParser<T>(type.kotlin) {
 
     companion object {
+
         private val yamlParsers: MutableMap<String, YamlParserCojen<*>> = mutableMapOf()
 
         private fun parserName(type: KClass<*>, nrOfInitArgs: Int): String {
-            return "YamlParser${type.simpleName}$nrOfInitArgs"
+            return "${type.simpleName}Parser$nrOfInitArgs"
         }
         /**
          * Creates a YamlParser for the given type using Cojen Maker if it does not already exist.
@@ -25,11 +35,11 @@ open class YamlParserCojen<T : Any>(
          */
         fun <T : Any> yamlParser(type: KClass<T>, nrOfInitArgs: Int = type.constructors.first().parameters.size): AbstractYamlParser<T> {
             return yamlParsers.getOrPut(parserName(type, nrOfInitArgs)) {
-                YamlParserCojen(type, nrOfInitArgs)
+                YamlParserCojen(type.java, nrOfInitArgs)
                     .buildYamlParser()
                     .finish()
-                    .getConstructor(KClass::class.java, Integer::class.java)
-                    .newInstance(type, nrOfInitArgs) as YamlParserCojen<*>
+                    .getConstructor(Class::class.java, Integer::class.java)
+                    .newInstance(type.java, nrOfInitArgs) as YamlParserCojen<*>
             } as YamlParserCojen<T>
         }
     }
@@ -48,5 +58,162 @@ open class YamlParserCojen<T : Any>(
     private fun buildYamlParser() : ClassMaker {
         TODO()
     }
+
+    // Used to get a new dynamic parser for a type
+    // Called by dynamically generated parsers
+    fun javaYamlParser(type: Class<T>, nrOfInitArgs: Int): YamlParserCojen<T> {
+        return yamlParser(type.kotlin, nrOfInitArgs) as YamlParserCojen<T>
+    }
+
+    private fun buildNewInstanceMethod2(newInstance: MethodMaker, type: KClass<*>, nrOfInitArgs: Int) {
+
+        if (nrOfInitArgs == 0) {
+            val arg = newInstance.param(0).invoke("values").invoke("iterator").invoke("next")
+            val value = castType(newInstance, arg, type.java)
+            newInstance.return_(value)
+            return
+        }
+
+        val args = newInstance.param(0).cast(Map::class.java)
+
+        val constructor = type.java.constructors.first { it.parameters.size == nrOfInitArgs }
+
+        val props = constructor.parameters.map { it ->
+
+                val name = newInstance.`var`(String::class.java).set(it.name)
+
+                if (it.annotations.any { it is YamlArg }) {
+                    val defaultProp = args.invoke("get", it.name)
+                    val annotation = it.annotations.first { it is YamlArg } as YamlArg
+                    defaultProp.ifEq(null) {
+                        name.set(annotation.yamlName)
+                    }
+                    defaultProp.ifEq(null) {
+                        args.invoke("get", annotation.yamlName).ifNe(null) {
+                            newInstance.new_(IllegalArgumentException::class.java, "Duplicate parameter: ${it.name}")
+                                .throw_()
+                        }
+                    }
+                }
+
+                val value = args.invoke("get", name)
+
+                if (!it.hasDefaultValue(type.java as Class<T>)) {
+                    value.ifEq(null) {
+                        newInstance.new_(IllegalArgumentException::class.java, "Missing parameter: ${it.name}")
+                            .throw_()
+                    }
+                }
+
+                if (it.annotations.any { it is YamlConvert }) {
+                    val ret = newInstance.`var`(it.type).set(null)
+                    value.ifNe(null) {
+                        val annotation = it.annotations.first { it is YamlConvert } as YamlConvert
+                        val obj = newInstance.new_(annotation.parser.java)
+                        ret.set(obj.invoke("convertToObject", value.invoke("toString")))
+                    }
+                    ret
+                }
+                else {
+                    if (it.type == List::class.java) {
+                        val ret : Variable = newInstance.new_(ArrayList::class.java)
+                        value.ifNe(null) {
+                           ret.set(castToIterable(newInstance, args.invoke("get", name), it.parameterizedType as ParameterizedType))
+                        }
+                        ret
+                    }
+                    else {
+                        castType(newInstance, value, it.type)
+                    }
+                }
+            }.toTypedArray()
+
+        val instance = newInstance.new_(type.java, *props)
+
+        newInstance.return_(instance)
+
+    }
+
+    private fun Parameter.hasDefaultValue(type: Class<T>) : Boolean {
+        val constructor = type.kotlin.primaryConstructor!!.javaConstructor!!
+        val position = constructor.parameters.indexOfFirst {
+            it.type == this.type && it.type.name == this.type.name
+        } + 1
+        return !type.constructors.all {
+            it.parameters.any { (it.name == this.name || it.name == "arg$position") }
+        }
+    }
+
+    private fun castToIterable(newInstance: MethodMaker, value: Variable, type: Type): Variable? {
+
+        val list = newInstance.`var`(List::class.java)
+            .set(value.cast(List::class.java))
+
+        val retList = newInstance.new_(ArrayList::class.java)
+
+        if (type is WildcardType) {
+            val paramType = type.upperBounds[0]
+            list.forEach(newInstance) { prop ->
+                val item = newInstance.new_(ArrayList::class.java)
+                item.invoke("add", prop)
+                val newList = newInstance.new_(ArrayList::class.java, castToIterable(newInstance, item, paramType))
+                retList.invoke("add", newList.invoke("get", 0))
+            }
+            return retList
+        }
+
+        val paramType = (type as ParameterizedType).actualTypeArguments[0]
+
+        if (paramType is List<*> || paramType is WildcardType) {
+            list.forEach(newInstance) { prop ->
+                retList.invoke("add", castToIterable(newInstance, prop, paramType))
+            }
+        }
+        else {
+            list.forEach(newInstance) { prop ->
+                val newMap = prop.cast(LinkedHashMap::class.java)
+                if (isSimpleType(paramType)) {
+                    val item = newMap.invoke("values").invoke("iterator").invoke("next")
+                    retList.invoke("add", castType(newInstance, item, paramType))
+                } else {
+                    retList.invoke("add", castType(newInstance, newMap, paramType))
+                }
+            }
+        }
+        return retList
+    }
+
+    private fun Variable.forEach(newInstance: MethodMaker, block: (Variable) -> Unit) {
+        val size = this.invoke("size")
+        val i = newInstance.`var`(Int::class.java).set(0)
+        val start = newInstance.label().here()
+        block(this.invoke("get", i))
+        i.inc(1)
+        i.ifLt(size) {
+            newInstance.goto_(start)
+        }
+    }
+
+    private fun castType(newInstance: MethodMaker, value: Variable, type: Type): Any? {
+        TODO()
+    }
+
+    private fun isSimpleType(type: Type): Boolean {
+        if ((type as Class<*>).isPrimitive) {
+            return true
+        }
+        return when (type) {
+            String::class.java -> return true
+            Integer::class.java -> return true
+            UByte::class.java -> return true
+            UShort::class.java -> return true
+            UInt::class.java -> return true
+            ULong::class.java -> return true
+            else -> false
+        }
+    }
+
+
 }
+
 
