@@ -181,14 +181,21 @@ open class YamlParserCojen<T : Any>(
 
     private fun castToIterable(newInstance: MethodMaker, value: Variable, type: Type): Variable? {
 
+        // Create a new list and set the type of the list
+        // e.g.: List<String>
         val list = newInstance.`var`(List::class.java)
             .set(value.cast(List::class.java))
 
+        // Create a new instance of the list
         val retList = newInstance.new_(ArrayList::class.java)
 
+        // check if the type is a wildcard type (e.g.: List<?>)
         if (type is WildcardType) {
+            // get the type of the list
+            // e.g.: String in a List<String>
             val paramType = type.upperBounds[0]
             list.forEach(newInstance) { prop ->
+                // create a new list (referring to the list of the list)
                 val item = newInstance.new_(ArrayList::class.java)
                 item.invoke("add", prop)
                 val newList = newInstance.new_(ArrayList::class.java, castToIterable(newInstance, item, paramType))
@@ -208,6 +215,8 @@ open class YamlParserCojen<T : Any>(
             list.forEach(newInstance) { prop ->
                 val newMap = prop.cast(LinkedHashMap::class.java)
                 if (isSimpleType(paramType)) {
+                    // get the value of the map (e.g.: "value" in {key: "value"})
+                    // because it is a simple type, doesn't make sense to be a map
                     val item = newMap.invoke("values").invoke("iterator").invoke("next")
                     retList.invoke("add", castType(newInstance, item, paramType))
                 } else {
@@ -219,9 +228,10 @@ open class YamlParserCojen<T : Any>(
     }
 
     private fun Variable.forEach(newInstance: MethodMaker, block: (Variable) -> Unit) {
-        val size = this.invoke("size")
-        val i = newInstance.`var`(Int::class.java).set(0)
-        val start = newInstance.label().here()
+        val size = this.invoke("size") // list size
+        val i = newInstance.`var`(Int::class.java).set(0) // index
+        val start = newInstance.label().here() // asm like label
+        // call the block with the value of the list at the index i
         block(this.invoke("get", i))
         i.inc(1)
         i.ifLt(size) {
@@ -234,9 +244,11 @@ open class YamlParserCojen<T : Any>(
     }
 
     private fun isSimpleType(type: Type): Boolean {
+        // check if it is a primitive type
         if ((type as Class<*>).isPrimitive) {
             return true
         }
+        // check if it is a boxed primitive type
         return when (type) {
             String::class.java -> return true
             Integer::class.java -> return true
