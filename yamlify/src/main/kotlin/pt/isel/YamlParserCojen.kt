@@ -9,9 +9,7 @@ import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
 import kotlin.reflect.KClass
 import kotlin.jvm.*
-import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.jvm.javaConstructor
 
 /**
@@ -56,7 +54,44 @@ open class YamlParserCojen<T : Any>(
     }
 
     private fun buildYamlParser() : ClassMaker {
-        TODO()
+        val cm = ClassMaker
+            .begin(parserName(type.kotlin, nrOfInitArgs))
+            .public_()
+            .extend(YamlParserCojen::class.java)
+
+        val newInstance = cm
+            .addMethod(Object::class.java, "newInstance", Map::class.java)
+            .public_()
+
+
+
+        val constructor = cm
+            .addConstructor(Class::class.java,Int::class.java)
+            .public_()
+
+        val typeField = cm
+            .addField(Class::class.java, "type")
+            .private_()
+            .final_()
+        val initArgs = cm
+            .addField(Int::class.java, "nrOfInitArgs")
+            .private_()
+            .final_()
+        constructor
+            .field(typeField.name())
+            .set(constructor.param(0))
+        constructor
+            .field(initArgs.name())
+            .set(constructor.param(1))
+        constructor
+            .invokeSuperConstructor(constructor.param(0), constructor.param(1))
+
+
+
+
+        buildNewInstanceMethod(newInstance, type.kotlin, nrOfInitArgs)
+
+        return cm
     }
 
     // Used to get a new dynamic parser for a type
@@ -65,7 +100,7 @@ open class YamlParserCojen<T : Any>(
         return yamlParser(type.kotlin, nrOfInitArgs) as YamlParserCojen<T>
     }
 
-    private fun buildNewInstanceMethod2(newInstance: MethodMaker, type: KClass<*>, nrOfInitArgs: Int) {
+    private fun buildNewInstanceMethod(newInstance: MethodMaker, type: KClass<*>, nrOfInitArgs: Int) {
 
         if (nrOfInitArgs == 0) {
             val arg = newInstance.param(0).invoke("values").invoke("iterator").invoke("next")
