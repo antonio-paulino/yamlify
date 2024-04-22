@@ -56,12 +56,12 @@ This repeated use of reflection results in a significant performance overhead, l
 ##### Student Class Structure
 The Student class is a more complex class compared to the Savings Account class. It has the following structure:
 ```kotlin
-class Student(
-    val id: Int,
+class Student (
     val name: String,
-    val birth: LocalDate,
-    val address: Address,
-    val grades: List<Grade>,
+    val nr: Int,
+    val from: String,
+    val address: Address? = null,
+    val grades: List<Grade> = emptyList()
 )
 class Grade(
     val subject: String,
@@ -88,3 +88,13 @@ This slight decrease in relative performance for both the Cojen and Reflect pars
 The Student class has a nested Address class property and a list of instances of the Grade class, which requires additional parser calls and instantiation steps.
 These additional steps result in slight decrease in performance 
 for both parsers, relative to the Baseline parser.
+
+### Conclusion
+
+The benchmarks show that the Cojen parser is a viable alternative to the Baseline parser for both of these class structures, offering similar performance without the overhead of reflection or 
+the need to implement a specific parser for each domain class.
+
+The Reflect parser, on the other hand, shows significantly slower performance due to its reliance on reflection for instantiation, however,
+it is still an alternative to handle the parsing of domain classes without the need to implement a specific parser for each domain class, 
+though it is not as performant as the Cojen parser.
+
