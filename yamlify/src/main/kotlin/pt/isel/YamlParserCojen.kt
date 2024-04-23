@@ -121,7 +121,7 @@ open class YamlParserCojen<T : Any>(
                     defaultProp.ifEq(null) {
                         name.set(annotation.yamlName)
                     }
-                    defaultProp.ifEq(null) {
+                    defaultProp.ifNe(null) {
                         args.invoke("get", annotation.yamlName).ifNe(null) {
                             newInstance.new_(IllegalArgumentException::class.java, "Duplicate parameter: ${it.name}")
                                 .throw_()
