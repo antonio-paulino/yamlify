@@ -113,7 +113,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                 parts[1].isNotEmpty() -> map[parts[0]] = parts[1]
                 // When the line is a scalar
                 // Add the value to the map
-                isScalar(line) -> map[parts[0]] = line.split("-").last().fastTrim()
+                isScalar(line) -> map[""] = line.split("-").last().fastTrim()
                 // When the line is a list
                 else -> {
                     // Get the next line
@@ -140,7 +140,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     private fun getLineParts(line: String): List<String> {
         val parts = line.split(":")
         return if (parts.size == 1) {
-            listOf(parts[0].fastTrim(), "")
+            listOf(parts[0].trim(), "")
         } else {
             listOf(parts[0].fastTrim(), parts[1].fastTrim())
         }
@@ -219,9 +219,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             } else {
                 // If there is no list item separator
                 // Add the line to the current object lines
-                if (line.isNotBlank()) {
-                    currObject.add(line)
-                }
+                currObject.add(line)
             }
         }
         // Add the last object to the list

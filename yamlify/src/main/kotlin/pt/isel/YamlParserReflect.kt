@@ -2,17 +2,48 @@ package pt.isel
 
 import kotlin.reflect.*
 import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.starProjectedType
-
 
 /**
  * A YamlParser that uses reflection to parse objects.
  */
-class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>) : AbstractYamlParser<T>(type) {
+class YamlParserReflect<T : Any> private constructor(type: KClass<T>) : AbstractYamlParser<T>(type) {
 
     private val constructor = type.constructors.first()
 
-    private val constructorProps : MutableMap<String, KClass<*>> = mutableMapOf()
+    private val constructorArgs = getConstructorArgConverters()
+
+    private val simpleTypeInstance : ((Any) -> Any)? = castSimpleType(type)
+
+    private fun getConstructorArgConverters() : Map<String, Pair<KParameter, (Any) -> Any>> {
+        val args = mutableMapOf<String, Pair<KParameter, (Any) -> Any>>()
+        constructor.parameters.forEach { param ->
+            val converter = param to getTypeConverter(param)
+            if (param.annotations.any { it is YamlArg }) {
+                val yamlArg = param.annotations.first { it is YamlArg } as YamlArg
+                args[yamlArg.yamlName] = converter
+            }
+            args[param.name!!] = converter
+        }
+        return args
+    }
+    private fun getTypeConverter(param: KParameter): (Any) -> Any {
+        if (param.annotations.any { it is YamlConvert }) {
+            val customParser = param.annotations.first { it is YamlConvert } as YamlConvert
+            val customParserInstance = customParser.parser.createInstance()
+            return  { str : Any -> customParserInstance.convertToObject(str.toString())!! }
+        }
+        val simpleType = castSimpleType(param.type.classifier as KClass<T>)
+        if (simpleType != null) {
+            return simpleType
+        }
+        return when (param.type.classifier) {
+            List::class -> getIterableValue(param.type)
+            else -> {
+                val parser = yamlParser(param.type.classifier as KClass<*>)
+                return { map : Any -> parser.newInstance(map as Map<String, Any>) }
+            }
+        }
+    }
 
     companion object {
         /**
@@ -31,127 +62,56 @@ class YamlParserReflect<T : Any> private constructor(private val type: KClass<T>
      * Used to get a parser for other Type using the same parsing approach.
      */
     override fun <T : Any> yamlParser(type: KClass<T>) = YamlParserReflect.yamlParser(type)
+
     /**
      * Creates a new instance of T through the first constructor
      * that has all the mandatory parameters in the map and optional parameters for the rest.
      */
     override fun newInstance(args: Map<String, Any>): T {
-        // If the constructor has no parameters, return a new instance of the type
-        if (constructor.parameters.isEmpty()) {
-            return castSimpleType(args.values.first(), type.starProjectedType) as T
+        val props = mutableMapOf<KParameter, Any?>()
+        if (simpleTypeInstance != null) {
+            return simpleTypeInstance!!(args[""]!!) as T
         }
-
-        // Map the properties to the constructor parameters
-        val properties = mutableListOf<Pair<String,KParameter>>()
         args.keys.forEach { srcProp ->
-            val param = matchParameter(srcProp, constructor.parameters)
-            if (param != null) {
-                if (properties.any { it.second == param }) {
-                    throw IllegalArgumentException("Duplicate parameter: ${param.name}")
-                }
-                properties.add(Pair(srcProp, param))
-            }
+            val constructorArg = constructorArgs[srcProp] ?: throw IllegalArgumentException("Unknown property $srcProp")
+            if (props.containsKey(constructorArg.first))
+                throw IllegalArgumentException("Duplicate property $srcProp in constructor.")
+            props[constructorArg.first] = constructorArg.second(args[srcProp]!!)
         }
-
-        // Get the constructor arguments
-        val constructorArgs = properties.associateBy({ it.second }, { (srcProp, destProp) ->
-            destProp.run {
-                val value = args[srcProp]
-
-                if (destProp.annotations.any { it is YamlConvert }) {
-                    val customParser = destProp.annotations.first { it is YamlConvert } as YamlConvert
-                    val customParserInstance = customParser.parser.createInstance()
-                    customParserInstance.convertToObject(value.toString())
-                } else {
-                    value?.let { castValueToParamType(it, destProp) }
-                }
-            }
-        })
-
-        return constructor.callBy(constructorArgs)
+        return constructor.callBy(props)
     }
 
-    private fun matchParameter(srcProp: String, ctorParameters: List<KParameter>) : KParameter? {
-        return ctorParameters.firstOrNull { arg ->
-            srcProp == arg.name || arg.annotations.any { it is YamlArg && it.yamlName == srcProp }
-        }
-    }
-
-    private fun getClassifier(name: String, type: KType): KClass<*> {
-        return constructorProps.getOrPut(name) {
-            type.classifier as KClass<*>
-        }
-    }
-
-    // Casts a simple type to the desired type
-    // for when the type has no constructor parameters
-    private fun castSimpleType(value: Any, type: KType): Any? {
-        val classifier = getClassifier(this.type.simpleName!!, type)
-        return when (classifier) {
-            String::class -> value.toString()
-            Char::class -> value.toString().first()
-            Int::class -> value.toString().toInt()
-            Long::class -> value.toString().toLong()
-            Double::class -> value.toString().toDouble()
-            Float::class -> value.toString().toFloat()
-            Boolean::class -> value.toString().toBoolean()
-            Byte::class -> value.toString().toByte()
-            Short::class -> value.toString().toShort()
-            UByte::class -> value.toString().toUByte()
-            UShort::class -> value.toString().toUShort()
-            UInt::class -> value.toString().toUInt()
-            ULong::class -> value.toString().toULong()
+    private fun castSimpleType(type: KClass<T>): ((Any) -> Any)? {
+        return when (type) {
+            String::class -> { value : String -> value }
+            Char::class -> { value : String   -> value.first() }
+            Int::class -> { value : String -> value.toInt() }
+            Long::class -> { value : String -> value.toLong() }
+            Double::class -> { value : String -> value.toDouble() }
+            Float::class -> { value : String -> value.toFloat() }
+            Boolean::class -> { value : String -> value.toBoolean() }
+            Byte::class -> { value : String -> value.toByte() }
+            Short::class -> { value : String -> value.toShort() }
+            UByte::class -> { value : String -> value.toUByte() }
+            UShort::class -> { value : String -> value.toUShort() }
+            UInt::class -> { value : String -> value.toUInt() }
+            ULong::class -> { value : String -> value.toULong() }
             else -> null
-        }
+        } as ((Any) -> Any)?
     }
 
-    // Casts a value to the parameter type
-    // Used when the type has a constructor with parameters
-    private fun castValueToParamType(value: Any, parameter: KParameter): Any {
-        val paramType = parameter.type
-        val arg = value as? String
-        val classifier = getClassifier(parameter.name!!, paramType)
-        return when (classifier) {
-            String::class -> arg!!
-            Char::class -> arg!!.first()
-            Int::class -> arg!!.toInt()
-            Long::class -> arg!!.toLong()
-            Double::class -> arg!!.toDouble()
-            Float::class -> arg!!.toFloat()
-            Boolean::class -> arg!!.toBoolean()
-            Byte::class -> arg!!.toByte()
-            Short::class -> arg!!.toShort()
-            UByte::class -> arg!!.toUByte()
-            UShort::class -> arg!!.toUShort()
-            UInt::class -> arg!!.toUInt()
-            ULong::class -> arg!!.toULong()
-            List::class -> getIterableValue(value, paramType)
-            Set::class -> getIterableValue(value, paramType).toSet()
-            Array::class -> getIterableValue(value, paramType).toTypedArray()
-            Sequence::class -> getIterableValue(value, paramType).asSequence()
-            ArrayList::class -> ArrayList(getIterableValue(value, paramType))
-            HashSet::class -> HashSet(getIterableValue(value, paramType))
-            Collection::class -> getIterableValue(value, paramType)
-            else -> yamlParser(classifier).newInstance(value as Map<String, Any>)
+    private fun getIterableValue(type: KType): (Any) -> Any {
+        val simpleType = castSimpleType(type.arguments.first().type?.classifier as KClass<T>)
+        if (simpleType != null) {
+            return { list : Any -> (list as List<*>).map { val map = it as Map<*,*>; simpleType(map[""]!!) } }
         }
-    }
-
-    private fun getIterableValue(value: Any, type: KType): List<Any> {
-
-        // Cast the value to a List of Any
-        val list = value as List<*>
-
-        // Iterate over the list
-        return list.map {
-            // If the type is a list, recursively call getIterableValue to instance its elements
-            if (it is List<*>)
-                getIterableValue(it, type.arguments.first().type!!)
-            else
-            // Use the yamlParser to get the instances of the list element type
-                yamlParser(type.arguments.first().type!!.classifier as KClass<*>)
-                    .newInstance((it as Map<String, Any>))
+        if (type.arguments.first().type?.classifier == List::class) {
+            val nextList = type.arguments.first().type!!
+            val nextConverter = getIterableValue(nextList)
+            return { list : Any -> (list as List<*>).map { nextConverter(it!!) } }
         }
-
+        val parser = yamlParser(type.arguments.first().type?.classifier as KClass<*>)
+        return { list : Any -> (list as List<*>).map { parser.newInstance(it as Map<String, Any>) } }
     }
 
 }

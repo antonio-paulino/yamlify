@@ -37,19 +37,20 @@ class SavingsAccount(
 #### Benchmark Results and Analysis
 
 | Parser   | Operations per millisecond | Relative Performance |
-|----------|---------------------------|----------------------|
-| Baseline | 532.249 ± 2.907            | 1.000                |
-| Cojen    | 533.679 ± 1.817            | 1.003                |
-| Reflect  | 310.881 ± 1.017            | 0.584                |
+|----------|----------------------------|----------------------|
+| Baseline | 521.963 ± 1.463            | 1.000                |
+| Cojen    | 514.603 ± 1.589            | 0.986                |
+| Reflect  | 436.399 ± 0.837            | 0.836                |
 
 It can be observed that the Cojen parser's performance is within the margin of error of the baseline parser.
-This stems from the fact that the Cojen parser dinamically generates code to instantiate the domain class at runtime
+This stems from the fact that the Cojen parser dynamically generates code to instantiate the domain class at runtime
 during its initial invocation. Once this code is generated, subsequent calls to the parser benefit from utilizing
 the pre-generated code, eliminating the overhead of reflection. 
 
-The Reflect parser, on the other hand, shows significantly slower performance compared to both the baseline and Cojen parsers.
-Unlike the Cojen parser, the Reflect parser relies on reflection to instantiate the domain class every time it is called.
-This repeated use of reflection results in a significant performance overhead, leading to the observed results.
+The Reflect parser, on the other hand, shows slower performance compared to both the baseline and Cojen parsers.
+Unlike the Cojen parser, the Reflect parser relies on reflection to instantiate the domain class every time it is called 
+through the `callBy()` method, which is used to invoke the constructor of the domain class with the parsed values.
+This repeated use of reflection results in a performance overhead, leading to the observed results.
 
 ### Student Benchmark
 
@@ -75,26 +76,25 @@ class Address(
 ```
 ##### Benchmark Results and Analysis
 | Parser   | Operations per millisecond | Relative Performance |
-|----------|---------------------------|----------------------|
-| Baseline | 300.814 ± 1.658            | 1.000                |
-| Cojen    | 296.780 ± 1.013            | 0.987                |
-| Reflect  | 171.673 ± 0.628            | 0.570                |
+|----------|----------------------------|----------------------|
+| Baseline | 306.275 ± 1.646            | 1.000                |
+| Cojen    | 301.828 ± 0.678            | 1.002                |
+| Reflect  | 231.036 ± 0.485            | 0.767                |
 
-Once again, the Cojen parser's performance is close to the baseline parser's performance, with a slight decrease in relative performance compared to the Savings Account benchmark.
+Once again, the Cojen parser's performance is close to the baseline parser's performance, with a slight decrease in relative performance compared to the Savings Account benchmark in the reflect parser.
 
 The Reflect parser's performance is again, significantly slower than the baseline and Cojen parsers, with a slight decrease in relative performance compared to the Savings Account benchmark. 
 
-This slight decrease in relative performance for both the Cojen and Reflect parsers can be attributed to the increased complexity of the Student class compared to the Savings Account class. 
+This slight decrease in relative performance for both the Reflect parser can be attributed to the increased complexity of the Student class compared to the Savings Account class. 
 The Student class has a nested Address class property and a list of instances of the Grade class, which requires additional parser calls and instantiation steps.
-These additional steps result in slight decrease in performance 
-for both parsers, relative to the Baseline parser.
+These additional steps result in slight decrease in performance for the reflect parser, which relies on reflection for instantiation through the constructor `callBy()` method.
 
 ### Conclusion
 
 The benchmarks show that the Cojen parser is a viable alternative to the Baseline parser for both of these class structures, offering similar performance without the overhead of reflection or 
 the need to implement a specific parser for each domain class.
 
-The Reflect parser, on the other hand, shows significantly slower performance due to its reliance on reflection for instantiation, however,
+The Reflect parser, on the other hand, shows slightly slower performance due to its reliance on reflection for instantiation, however,
 it is still an alternative to handle the parsing of domain classes without the need to implement a specific parser for each domain class, 
 though it is not as performant as the Cojen parser.
 
