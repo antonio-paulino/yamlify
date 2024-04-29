@@ -279,9 +279,6 @@ open class YamlParserCojen<T : Any>(
                 val parser = YamlParserCojen.yamlParser((type as Class<*>).kotlin) as YamlParserCojen
                 val map = value.cast(Map::class.java)
                 obj.set(
-                    // overhead of creating a new instance of the parser in the local method is less than
-                    // the overhead of trying to find the parser in the cache of by using
-                    // this class instance
                     newInstance.new_(parser::class.java, parser.type, parser.nrOfInitArgs)
                         .invoke("newInstance", map)
                         .cast(type)

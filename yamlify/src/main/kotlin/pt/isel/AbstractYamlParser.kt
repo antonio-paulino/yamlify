@@ -140,7 +140,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     private fun getLineParts(line: String): List<String> {
         val parts = line.split(":")
         return if (parts.size == 1) {
-            listOf(parts[0].trim(), "")
+            listOf(parts[0].fastTrim(), "")
         } else {
             listOf(parts[0].fastTrim(), parts[1].fastTrim())
         }
