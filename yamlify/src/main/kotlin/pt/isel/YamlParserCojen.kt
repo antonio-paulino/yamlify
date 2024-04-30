@@ -16,8 +16,8 @@ import kotlin.reflect.jvm.javaConstructor
  * A YamlParser that uses Cojen Maker to generate a parser.
  */
 open class YamlParserCojen<T : Any>(
-    private val type: Class<T>,
-    private val nrOfInitArgs: Int)
+    protected val type: Class<T>,
+    protected val nrOfInitArgs: Int)
 : AbstractYamlParser<T>(type.kotlin) {
 
     companion object {
@@ -64,21 +64,6 @@ open class YamlParserCojen<T : Any>(
             .addConstructor(Class::class.java, Integer::class.java)
             .public_()
 
-        val typeField = cm
-            .addField(Class::class.java, "type")
-            .private_()
-            .final_()
-        val initArgs = cm
-            .addField(Int::class.java, "nrOfInitArgs")
-            .private_()
-            .final_()
-
-        constructor
-            .field(typeField.name())
-            .set(constructor.param(0))
-        constructor
-            .field(initArgs.name())
-            .set(constructor.param(1))
         constructor
             .invokeSuperConstructor(constructor.param(0), constructor.param(1))
 
@@ -88,14 +73,7 @@ open class YamlParserCojen<T : Any>(
             .public_()
 
         buildNewInstanceMethod(newInstance, type.kotlin, nrOfInitArgs)
-
         return cm
-    }
-
-    // Used to get a new dynamic parser for a type
-    // Called by dynamically generated parsers
-    fun javaYamlParser(type: Class<T>, nrOfInitArgs: Int): AbstractYamlParser<T> {
-        return yamlParser(type.kotlin, nrOfInitArgs)
     }
 
     private fun buildNewInstanceMethod(newInstance: MethodMaker, type: KClass<*>, nrOfInitArgs: Int) {
@@ -279,7 +257,7 @@ open class YamlParserCojen<T : Any>(
                 val parser = YamlParserCojen.yamlParser((type as Class<*>).kotlin) as YamlParserCojen
                 val map = value.cast(Map::class.java)
                 obj.set(
-                    newInstance.new_(parser::class.java, parser.type, parser.nrOfInitArgs)
+                    newInstance.new_(parser::class.java, type, parser.nrOfInitArgs)
                         .invoke("newInstance", map)
                         .cast(type)
                 )
