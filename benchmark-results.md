@@ -80,8 +80,8 @@ class Address(
 | Parser   | Operations per millisecond | Relative Performance |
 |----------|----------------------------|----------------------|
 | Baseline | 306.275 ± 1.646            | 1.000                |
-| Cojen    | 301.828 ± 0.678            | 1.002                |
-| Reflect  | 231.036 ± 0.485            | 0.767                |
+| Cojen    | 301.828 ± 0.678            | 0.985                |
+| Reflect  | 231.036 ± 0.485            | 0.754                |
 
 Once again, the Cojen parser's performance is close to the baseline parser's performance.
 
@@ -90,7 +90,7 @@ The Reflect parser's performance is again, slower than the baseline and Cojen pa
 This slight decrease in relative performance for the Reflect parser can be attributed to the increased complexity of the Student class compared to the Savings Account class. 
 The Student class has a nested Address class property and a list of instances of the Grade class, which requires additional parser calls and instantiation steps.
 
-These additional steps result in slight decrease in performance for the reflect parser, which relies on reflection for instantiation through the constructor `callBy()` method.
+These additional steps result in a slight decrease in performance for the reflect parser, which relies on reflection for instantiation through the constructor `callBy()` method.
 
 ### Conclusion
 
