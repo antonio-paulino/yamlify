@@ -522,4 +522,43 @@ class YamlParserCojenTest {
         }
     }
 
+    @Test
+    fun `parseSequence should handle sequence with empty elements`() {
+        val yaml = """
+            - 
+            - 
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(String::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        assertThrows<NoSuchElementException> {
+            iterator.next()
+        }
+    }
+
+    @Test
+    fun `parseSequence with student class should parse valid sequence of students`() {
+        val yaml = """
+            -
+              name: Maria Candida
+              nr: 873435
+              from: Oleiros
+            - 
+              name: Jose Carioca
+              nr: 1214398
+              from: Tamega
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(Student::class, 3)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        val st1 = iterator.next()
+        assertEquals("Maria Candida", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        val st2 = iterator.next()
+        assertEquals("Jose Carioca", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        assert(!iterator.hasNext())
+    }
 }
