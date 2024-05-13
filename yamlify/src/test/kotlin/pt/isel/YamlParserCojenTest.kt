@@ -1,11 +1,10 @@
 package pt.isel
 
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertThrows
-import pt.isel.TestConverter.Companion.nameCounter
 import org.junit.jupiter.api.io.TempDir
+import pt.isel.TestConverter.Companion.nameCounter
 import java.io.File
-import java.io.StringReader
 import java.nio.file.Path
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
@@ -736,88 +735,92 @@ class YamlParserCojenTest {
     }
 
 
+    @Test
+    fun `test parseFolderEager with file change`(@TempDir tempDir: Path) {
+        val firstYamlFile = File(tempDir.toFile(), "test.yaml")
+        firstYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        val secondYamlFile = File(tempDir.toFile(), "test2.yaml")
+        secondYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
+        val thirdYamlFile = File(tempDir.toFile(), "test3.yaml")
+        thirdYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
 
-@Test
-fun `test parseFolderEager with file change`(@TempDir tempDir: Path) {
-    val firstYamlFile = File(tempDir.toFile(), "test.yaml")
-    firstYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
-    val secondYamlFile = File(tempDir.toFile(), "test2.yaml")
-    secondYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
-    val thirdYamlFile = File(tempDir.toFile(), "test3.yaml")
-    thirdYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        // Create the parser
+        val grades = YamlParserCojen.yamlParser(ClassGrades::class, 1)
+        val result = grades.parseFolderEager(tempDir.toString())
 
-    // Create the parser
-    val grades = YamlParserCojen.yamlParser(ClassGrades::class, 1)
-    val result = grades.parseFolderEager(tempDir.toString())
+        secondYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        thirdYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
 
-    secondYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
-    thirdYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
+        assertEquals(3, result.size)
+        val parsedFile = result[0]
+        assertEquals("LAE", parsedFile.grades.first().subject)
+        assertEquals(18, parsedFile.grades.first().classification)
+        assertEquals("PDM", parsedFile.grades.elementAt(1).subject)
+        assertEquals(15, parsedFile.grades.elementAt(1).classification)
+        assertEquals("PC", parsedFile.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile.grades.elementAt(2).classification)
+        val parsedFile2 = result[1]
+        assertEquals("PSC", parsedFile2.grades.first().subject)
+        assertEquals(10, parsedFile2.grades.first().classification)
+        assertEquals("PG", parsedFile2.grades.elementAt(1).subject)
+        assertEquals(13, parsedFile2.grades.elementAt(1).classification)
+        assertEquals("LIC", parsedFile2.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile2.grades.elementAt(2).classification)
+        val parsedFile3 = result[2]
+        assertEquals("LAE", parsedFile3.grades.first().subject)
+        assertEquals(18, parsedFile3.grades.first().classification)
+        assertEquals("PDM", parsedFile3.grades.elementAt(1).subject)
+        assertEquals(15, parsedFile3.grades.elementAt(1).classification)
+        assertEquals("PC", parsedFile3.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile3.grades.elementAt(2).classification)
 
-    assertEquals(3, result.size)
-    val parsedFile = result[0]
-    assertEquals("LAE", parsedFile.grades.first().subject)
-    assertEquals(18, parsedFile.grades.first().classification)
-    assertEquals("PDM", parsedFile.grades.elementAt(1).subject)
-    assertEquals(15, parsedFile.grades.elementAt(1).classification)
-    assertEquals("PC", parsedFile.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile.grades.elementAt(2).classification)
-    val parsedFile2 = result[1]
-    assertEquals("PSC", parsedFile2.grades.first().subject)
-    assertEquals(10, parsedFile2.grades.first().classification)
-    assertEquals("PG", parsedFile2.grades.elementAt(1).subject)
-    assertEquals(13, parsedFile2.grades.elementAt(1).classification)
-    assertEquals("LIC", parsedFile2.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile2.grades.elementAt(2).classification)
-    val parsedFile3 = result[2]
-    assertEquals("LAE", parsedFile3.grades.first().subject)
-    assertEquals(18, parsedFile3.grades.first().classification)
-    assertEquals("PDM", parsedFile3.grades.elementAt(1).subject)
-    assertEquals(15, parsedFile3.grades.elementAt(1).classification)
-    assertEquals("PC", parsedFile3.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile3.grades.elementAt(2).classification)
+    }
 
-}
+    @Test
+    fun `test parseFolderLazy with file change`(@TempDir tempDir: Path) {
+        val firstYamlFile = File(tempDir.toFile(), "test.yaml")
+        firstYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        val secondYamlFile = File(tempDir.toFile(), "test2.yaml")
+        secondYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
+        val thirdYamlFile = File(tempDir.toFile(), "test3.yaml")
+        thirdYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
 
-@Test
-fun `test parseFolderLazy with file change`(@TempDir tempDir: Path) {
-    val firstYamlFile = File(tempDir.toFile(), "test.yaml")
-    firstYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
-    val secondYamlFile = File(tempDir.toFile(), "test2.yaml")
-    secondYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
-    val thirdYamlFile = File(tempDir.toFile(), "test3.yaml")
-    thirdYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        // Create the parser
+        val grades = YamlParserCojen.yamlParser(ClassGrades::class, 1)
+        val result = grades.parseFolderLazy(tempDir.toString()).iterator()
 
-    // Create the parser
-    val grades = YamlParserCojen.yamlParser(ClassGrades::class, 1)
-    val result = grades.parseFolderLazy(tempDir.toString()).iterator()
-
-    secondYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
-    thirdYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
+        secondYamlFile.writeText(yamlSequenceOfGrades.trimIndent())
+        thirdYamlFile.writeText(yamlSequenceOfGradesChanged.trimIndent())
 
 
-    assertTrue(result.hasNext())
-    val parsedFile = result.next()
-    assertEquals("LAE", parsedFile.grades.first().subject)
-    assertEquals(18, parsedFile.grades.first().classification)
-    assertEquals("PDM", parsedFile.grades.elementAt(1).subject)
-    assertEquals(15, parsedFile.grades.elementAt(1).classification)
-    assertEquals("PC", parsedFile.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile.grades.elementAt(2).classification)
-    assertTrue(result.hasNext())
-    val parsedFile2 = result.next()
-    assertEquals("LAE", parsedFile2.grades.first().subject)
-    assertEquals(18, parsedFile2.grades.first().classification)
-    assertEquals("PDM", parsedFile2.grades.elementAt(1).subject)
-    assertEquals(15, parsedFile2.grades.elementAt(1).classification)
-    assertEquals("PC", parsedFile2.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile2.grades.elementAt(2).classification)
-    val parsedFile3 = result.next()
-    assertEquals("PSC", parsedFile3.grades.first().subject)
-    assertEquals(10, parsedFile3.grades.first().classification)
-    assertEquals("PG", parsedFile3.grades.elementAt(1).subject)
-    assertEquals(13, parsedFile3.grades.elementAt(1).classification)
-    assertEquals("LIC", parsedFile3.grades.elementAt(2).subject)
-    assertEquals(19, parsedFile3.grades.elementAt(2).classification)
+        assertTrue(result.hasNext())
+        val parsedFile = result.next()
+        assertEquals("LAE", parsedFile.grades.first().subject)
+        assertEquals(18, parsedFile.grades.first().classification)
+        assertEquals("PDM", parsedFile.grades.elementAt(1).subject)
+        assertEquals(15, parsedFile.grades.elementAt(1).classification)
+        assertEquals("PC", parsedFile.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile.grades.elementAt(2).classification)
+        assertTrue(result.hasNext())
+        val parsedFile2 = result.next()
+        assertEquals("LAE", parsedFile2.grades.first().subject)
+        assertEquals(18, parsedFile2.grades.first().classification)
+        assertEquals("PDM", parsedFile2.grades.elementAt(1).subject)
+        assertEquals(15, parsedFile2.grades.elementAt(1).classification)
+        assertEquals("PC", parsedFile2.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile2.grades.elementAt(2).classification)
+        val parsedFile3 = result.next()
+        assertEquals("PSC", parsedFile3.grades.first().subject)
+        assertEquals(10, parsedFile3.grades.first().classification)
+        assertEquals("PG", parsedFile3.grades.elementAt(1).subject)
+        assertEquals(13, parsedFile3.grades.elementAt(1).classification)
+        assertEquals("LIC", parsedFile3.grades.elementAt(2).subject)
+        assertEquals(19, parsedFile3.grades.elementAt(2).classification)
+    }
 
-}
+    @BeforeEach
+    fun clearCounter() {
+        nameCounter = 0
+    }
+
 }
