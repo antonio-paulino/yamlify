@@ -16,12 +16,26 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
      */
     abstract fun newInstance(args: Map<String, Any>): T
 
-    final override fun parseFolderEager(folder: String): List<T> {
-        TODO()
+    final override fun parseFolderEager(path: String): List<T> {
+        return File(path).listFiles { _, name -> name.endsWith(".yaml") }?.map {
+            val yaml = it.reader()
+            parseObject(yaml)
+
+        }?.toList() ?: emptyList()
     }
 
-    final override fun parseFolderLazy(folder: String): Sequence<T> {
-        TODO()
+
+    final override fun parseFolderLazy(path: String): Sequence<T> {
+        return sequence {
+            File(path).listFiles { _, name -> name.endsWith(".yaml") }?.forEach {
+                if (it.isFile) {
+                    val yaml = it.reader()
+                    yield(parseObject(yaml))
+                }
+            }
+        }
+
+
     }
 
     final override fun parseSequence(yaml: Reader): Sequence<T> {

@@ -803,3 +803,15 @@ const val yamlSequenceOfGrades = """
                    classification: 19
         """
 
+const val yamlSequenceOfGradesChanged = """
+               grades:
+                 - 
+                   subject: PSC
+                   classification: 10
+                 -
+                   subject: PG
+                   classification: 13
+                 -
+                   subject: LIC
+                   classification: 19
+        """
