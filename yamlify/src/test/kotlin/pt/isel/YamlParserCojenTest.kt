@@ -1,6 +1,7 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
+import java.io.StringReader
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import kotlin.test.Test
@@ -469,6 +470,56 @@ class YamlParserCojenTest {
         assertFalse { grades.hasNext() }
     }
 
+    @Test
+    fun `parseSequence should parse valid sequence of integers`() {
+        val yaml = """
+            - 1
+            - 2
+            - 3
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(Int::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        assertEquals(1, iterator.next())
+        assertEquals(2, iterator.next())
+        assertEquals(3, iterator.next())
+        assert(!iterator.hasNext())
+    }
 
+    @Test
+    fun `parseSequence should throw exception for invalid sequence`() {
+        val yaml = """
+            - 1
+            - a
+            - 3
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(Int::class)
+        assertThrows<NumberFormatException> {
+            parser.parseSequence(yaml.reader()).toList()
+        }
+    }
+
+    @Test
+    fun `parseSequence should parse valid sequence of strings`() {
+        val yaml = """
+            - hello
+            - world
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(String::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        assertEquals("hello", iterator.next())
+        assertEquals("world", iterator.next())
+        assert(!iterator.hasNext())
+    }
+
+    @Test
+    fun `parseSequence should handle empty sequence`() {
+        val yaml = ""
+        val parser = YamlParserCojen.yamlParser(String::class)
+        assertThrows<NoSuchElementException> {
+            parser.parseSequence(yaml.reader()).toList()
+        }
+    }
 
 }
