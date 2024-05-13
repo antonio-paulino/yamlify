@@ -1,12 +1,23 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
+import pt.isel.TestConverter.Companion.nameCounter
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
+class TestConverter : YamlConverter<String> {
+    companion object {
+        var nameCounter = 0
+    }
+
+    override fun convertToObject(input: String): String {
+        nameCounter++
+        return input
+    }
+}
 
 class YamlParserReflectTest {
 
@@ -392,6 +403,7 @@ class YamlParserReflectTest {
             YamlParserReflect.yamlParser(Student::class).parseObject(yaml.reader())
         }
     }
+
     @Test
     fun `test parse student with renamed from to city of birth`() {
         val yaml = """
@@ -483,7 +495,7 @@ class YamlParserReflectTest {
     }
 
     @Test
-    fun `test parse grades with custom parser`(){
+    fun `test parse grades with custom parser`() {
         val yaml = yamlSequenceOfGrades.trimIndent()
         val grades = YamlParserReflect.yamlParser(ClassGrades::class)
             .parseObject(yaml.reader())
@@ -498,6 +510,44 @@ class YamlParserReflectTest {
         assertEquals("PC", g3.subject)
         assertEquals(19, g3.classification)
         assertFalse { grades.hasNext() }
+    }
+
+
+    @Test
+    fun `test parseSequence with yamlConvert counter`() {
+
+        class TestStudentClass(
+            @YamlConvert(TestConverter::class)
+            val name: String,
+            val nr: Int,
+            val from: String
+        )
+
+        val yaml = """
+            - 
+              name: 1
+              nr: 873435
+              from: Oleiros
+            - 
+              name: 2
+              nr: 1214398
+              from: Tamega
+        """.trimIndent()
+
+        val seq = YamlParserReflect.yamlParser(TestStudentClass::class)
+            .parseSequence(yaml.reader())
+            .iterator()
+
+        val st1 = seq.next()
+        assertEquals("1", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        val st2 = seq.next()
+        assertEquals("2", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        assertFalse { seq.hasNext() }
+        assertEquals(2, nameCounter)
     }
 
     @Test
@@ -530,10 +580,83 @@ class YamlParserReflectTest {
     }
 
     @Test
+    fun `parse sequence with list of list`() {
+        val yaml = """
+            - 
+              - 1
+              - 2
+              - 3
+            - 
+              - 4
+              - 5
+              - 6
+        """.trimIndent()
+        val parser = YamlParserReflect.yamlParser(Int::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        val list1 = iterator.next() as List<Int>
+        assertEquals(1, list1[0])
+        assertEquals(2, list1[1])
+        assertEquals(3, list1[2])
+        val list2 = iterator.next() as List<Int>
+        assertEquals(4, list2[0])
+        assertEquals(5, list2[1])
+        assertEquals(6, list2[2])
+        assert(!iterator.hasNext())
+    }
+
+    @Test
+    fun `parse sequence list of list of students`() {
+        val yaml = """
+            - 
+              - 
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+              - 
+                name: Jose Carioca
+                nr: 1214398
+                from: Tamega
+            - 
+              - 
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+              - 
+                name: Jose Carioca
+                nr: 1214398
+                from: Tamega
+        """.trimIndent()
+        val parser = YamlParserReflect.yamlParser(Student::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        val list1 = iterator.next() as List<Student>
+        val st1 = list1[0]
+        assertEquals("Maria Candida", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        val st2 = list1[1]
+        assertEquals("Jose Carioca", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        val list2 = iterator.next() as List<Student>
+        val st3 = list2[0]
+        assertEquals("Maria Candida", st3.name)
+        assertEquals(873435, st3.nr)
+        assertEquals("Oleiros", st3.from)
+        val st4 = list2[1]
+        assertEquals("Jose Carioca", st4.name)
+        assertEquals(1214398, st4.nr)
+        assertEquals("Tamega", st4.from)
+        assert(!iterator.hasNext())
+    }
+
+    @Test
     fun `parseSequence should parse valid sequence of strings`() {
         val yaml = """
             - hello
             - world
+            
         """.trimIndent()
         val parser = YamlParserReflect.yamlParser(String::class)
         val sequence = parser.parseSequence(yaml.reader())
@@ -548,7 +671,58 @@ class YamlParserReflectTest {
         val yaml = ""
         val parser = YamlParserReflect.yamlParser(String::class)
         assertThrows<NoSuchElementException> {
-            parser.parseSequence(yaml.reader()).toList()
+            parser.parseSequence(yaml.reader()).iterator().next()
+        }
+    }
+
+    @Test
+    fun `parseSequence of students`() {
+        val yaml = yamlSequenceOfStudents
+        val seq = YamlParserReflect.yamlParser(Student::class)
+            .parseSequence(yaml.reader())
+            .iterator()
+        assertStudentsInSequence(seq)
+    }
+
+    @Test
+    fun `parseSequence of grades`() {
+        val yaml = """
+            -
+              subject: LAE
+              classification: 18
+            -
+              subject: PDM
+              classification: 15
+            -
+              subject: PC
+              classification: 19
+        """.trimIndent()
+        val seq = YamlParserReflect.yamlParser(Grade::class)
+            .parseSequence(yaml.reader())
+            .iterator()
+        val g1 = seq.next()
+        assertEquals("LAE", g1.subject)
+        assertEquals(18, g1.classification)
+        val g2 = seq.next()
+        assertEquals("PDM", g2.subject)
+        assertEquals(15, g2.classification)
+        val g3 = seq.next()
+        assertEquals("PC", g3.subject)
+        assertEquals(19, g3.classification)
+        assertFalse { seq.hasNext() }
+    }
+
+    @Test
+    fun `parseSequence should handle sequence with empty elements`() {
+        val yaml = """
+            - 
+            - 
+        """.trimIndent()
+        val parser = YamlParserReflect.yamlParser(String::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        assertThrows<NoSuchElementException> {
+            iterator.next()
         }
     }
 
@@ -578,19 +752,6 @@ class YamlParserReflectTest {
         assert(!iterator.hasNext())
     }
 
-    @Test
-    fun `parseSequence should handle sequence with empty elements`() {
-        val yaml = """
-            - 
-            - 
-        """.trimIndent()
-        val parser = YamlParserReflect.yamlParser(String::class)
-        val sequence = parser.parseSequence(yaml.reader())
-        val iterator = sequence.iterator()
-        assertThrows<NoSuchElementException> {
-            iterator.next()
-        }
-    }
 }
 
 const val yamlSequenceOfStudents = """

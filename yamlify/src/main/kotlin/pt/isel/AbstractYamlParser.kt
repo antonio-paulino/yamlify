@@ -1,5 +1,6 @@
 package pt.isel
 
+import java.io.File
 import java.io.Reader
 import kotlin.reflect.KClass
 
@@ -7,13 +8,90 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     /**
      * Used to get a parser for other Type using this same parsing approach.
      */
-    abstract fun <T : Any> yamlParser(type: KClass<T>) : AbstractYamlParser<T>
+    abstract fun <T : Any> yamlParser(type: KClass<T>): AbstractYamlParser<T>
+
     /**
      * Creates a new instance of T through the first constructor
      * that has all the mandatory parameters in the map and optional parameters for the rest.
      */
     abstract fun newInstance(args: Map<String, Any>): T
 
+    final override fun parseFolderEager(folder: String): List<T> {
+        TODO()
+    }
+
+    final override fun parseFolderLazy(folder: String): Sequence<T> {
+        TODO()
+    }
+
+    final override fun parseSequence(yaml: Reader): Sequence<T> {
+        return object : Sequence<T> {
+            override fun iterator(): Iterator<T> {
+                return object : Iterator<T> {
+
+                    val yamlText = yaml.useLines { it.toList() }
+                    val iter = yamlText.iterator()
+                    var listIndentation: Int? = null
+                    var next: T? = null
+                    var start = true
+
+                    fun getNextObject() {
+
+                        if (next != null) return
+
+                        val lines = mutableListOf<String>()
+
+                        while (iter.hasNext()) {
+
+                            val line = iter.next()
+
+                            if (line.isBlank()) continue
+
+                            if (listIndentation == null) {
+                                listIndentation = getIndentation(line)
+                            }
+
+                            if (line[listIndentation!!] == '-') {
+                                if (isScalar(line)) {
+                                    next = newInstance(mapOf("" to line.split("-").last().fastTrim()))
+                                    return
+                                }
+                                if (start) { // Skip the first separator
+                                    start = false
+                                    continue
+                                } else {
+                                    break
+                                }
+                            }
+                            lines.add(line)
+                        }
+
+                        if (lines.isEmpty()) return
+
+                        next = if (isList(lines)) {
+                            createObjectsFromList(getListValues(lines)) as T
+                        } else {
+                            newInstance(getObjectValues(lines))
+                        }
+
+                    }
+
+                    override fun hasNext(): Boolean {
+                        getNextObject()
+                        return next != null
+                    }
+
+                    override fun next(): T {
+                        if (!hasNext()) throw NoSuchElementException()
+                        val result = next!!
+                        next = null
+                        return result
+                    }
+                }
+
+            }
+        }
+    }
 
     // Parse the yaml text into an object
     final override fun parseObject(yaml: Reader): T =
@@ -26,6 +104,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                 )
             )
         }
+
     // Parse the yaml text into a list of objects
     final override fun parseList(yaml: Reader): List<T> =
         yaml.useLines {
@@ -55,20 +134,18 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
 
     // Get the list of objects from yaml text
     private fun getListValues(input: List<String>): List<Any> {
-        if (input.isEmpty()) throw IllegalArgumentException("Empty list")
-        // Read the text from the reader
-        // this will return a string with the yaml content
+        if (input.isEmpty()) return emptyList()
         // Get the list of objects from the yaml text
         val yamlObjects = getObjectList(input)
         // Iterate over the list of objects
         return yamlObjects.map { lines ->
             // Check if the object is a list or a single object
             if (isList(lines))
-                // If it is a list, recursively call getListValues
-                // to handle the nested list
+            // If it is a list, recursively call getListValues
+            // to handle the nested list
                 getListValues(lines)
             else
-                // If it is a single object, call getObjectValues
+            // If it is a single object, call getObjectValues
                 getObjectValues(lines)
         }
     }
@@ -79,7 +156,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     }
 
     // Get the values of the object from the yaml text
-    private fun getObjectValues (lines: List<String>): Map<String, Any> {
+    private fun getObjectValues(lines: List<String>): Map<String, Any> {
 
         if (lines.isEmpty()) throw IllegalArgumentException("Empty object")
         // Create a mutable map to hold the results
@@ -145,6 +222,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             listOf(parts[0].fastTrim(), parts[1].fastTrim())
         }
     }
+
     private fun String.fastTrim(): String {
         var start = 0
         var end = length - 1
@@ -184,7 +262,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     }
 
     // Get the list of objects from the yaml text
-    private fun getObjectList(lines: List<String> ): List<List<String>>  {
+    private fun getObjectList(lines: List<String>): List<List<String>> {
 
         // Get the indentation of the object
         val objIndentation = getIndentation(lines.first())
@@ -224,7 +302,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
         }
         // Add the last object to the list
         if (currObject.isNotEmpty())
-             objects.add(currObject.toList())
+            objects.add(currObject.toList())
         // End by filtering any empty objects
         return objects
     }

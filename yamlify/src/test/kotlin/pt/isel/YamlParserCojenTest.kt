@@ -1,7 +1,7 @@
 package pt.isel
 
 import org.junit.jupiter.api.assertThrows
-import java.io.StringReader
+import pt.isel.TestConverter.Companion.nameCounter
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import kotlin.test.Test
@@ -21,6 +21,7 @@ class YamlParserCojenTest {
         assertEquals(873435, st.nr)
         assertEquals("Oleiros", st.from)
     }
+
     @Test
     fun parseStudentWithAddress() {
         val yaml = """
@@ -71,8 +72,9 @@ class YamlParserCojenTest {
         assertEquals(3, seq.next())
         assertFalse { seq.hasNext() }
     }
+
     @Test
-    fun parseSequenceOfStudents(){
+    fun parseSequenceOfStudents() {
         val yaml = """
             -
               name: Maria Candida
@@ -96,6 +98,7 @@ class YamlParserCojenTest {
         assertEquals("Tamega", st2.from)
         assertFalse { seq.hasNext() }
     }
+
     @Test
     fun parseSequenceOfStudentsWithAddresses() {
         val yaml = """
@@ -135,6 +138,7 @@ class YamlParserCojenTest {
         assertEquals("Porto", st2.address?.city)
         assertFalse { seq.hasNext() }
     }
+
     @Test
     fun parseSequenceOfStudentsWithAddressesAndGrades() {
         val seq = YamlParserCojen.yamlParser(Student::class, 5)
@@ -142,6 +146,7 @@ class YamlParserCojenTest {
             .iterator()
         assertStudentsInSequence(seq)
     }
+
     @Test
     fun parseClassroom() {
         val yaml = """
@@ -153,6 +158,7 @@ class YamlParserCojenTest {
         assertEquals("i45", cr.id)
         assertStudentsInSequence(cr.students.iterator())
     }
+
     private fun assertStudentsInSequence(seq: Iterator<Student>) {
         val st1 = seq.next()
         assertEquals("Maria Candida", st1.name)
@@ -189,8 +195,9 @@ class YamlParserCojenTest {
         assertFalse { grades2.hasNext() }
         assertFalse { seq.hasNext() }
     }
+
     @Test
-    fun `test parse Scalar List Object`(){
+    fun `test parse Scalar List Object`() {
         val yaml = """
             - 1
             - 2
@@ -204,8 +211,9 @@ class YamlParserCojenTest {
         assertEquals(3, seq.next())
         assertFalse { seq.hasNext() }
     }
+
     @Test
-    fun `parse Int list incorrect indentation at scalar sequence`(){
+    fun `parse Int list incorrect indentation at scalar sequence`() {
         val yaml = """
             - 1
              - 2
@@ -217,7 +225,7 @@ class YamlParserCojenTest {
     }
 
     @Test
-    fun `parse student incorrect indentation at address object`(){
+    fun `parse student incorrect indentation at address object`() {
         val yaml = """
             name: Maria Candida
             nr: 873435
@@ -231,8 +239,9 @@ class YamlParserCojenTest {
             YamlParserCojen.yamlParser(Student::class, 4).parseObject(yaml.reader())
         }
     }
+
     @Test
-    fun `parse student incorrect indentation at Student object`(){
+    fun `parse student incorrect indentation at Student object`() {
         val yaml = """
               name: Maria Candida
               nr: 873435
@@ -247,7 +256,7 @@ class YamlParserCojenTest {
     }
 
     @Test
-    fun `parse List of List of str`(){
+    fun `parse List of List of str`() {
         val yaml = """
             -
               - 1
@@ -267,8 +276,9 @@ class YamlParserCojenTest {
         assertEquals("5", seq[1][1])
         assertEquals("6", seq[1][2])
     }
+
     @Test
-    fun `parse intListList`(){
+    fun `parse intListList`() {
         val yaml = """
         list:
           -
@@ -290,8 +300,9 @@ class YamlParserCojenTest {
         assertEquals(6, seq[1][2])
 
     }
+
     @Test
-    fun `parse List of List of List of int`(){
+    fun `parse List of List of List of int`() {
         val yaml = """
             -
               -
@@ -327,8 +338,9 @@ class YamlParserCojenTest {
         assertEquals(11, seq[1][1][1])
         assertEquals(12, seq[1][1][2])
     }
+
     @Test
-    fun `test parse student with duplicate properties`(){
+    fun `test parse student with duplicate properties`() {
         val yaml = """
             name: Maria Candida
             name: Jose Carioca
@@ -339,8 +351,9 @@ class YamlParserCojenTest {
             YamlParserCojen.yamlParser(Student::class, 3).parseObject(yaml.reader())
         }
     }
+
     @Test
-    fun `test parse student with duplicate properties in address`(){
+    fun `test parse student with duplicate properties in address`() {
         val yaml = """
             name: Maria Candida
             nr: 873435
@@ -355,8 +368,9 @@ class YamlParserCojenTest {
             YamlParserCojen.yamlParser(Student::class, 4).parseObject(yaml.reader())
         }
     }
+
     @Test
-    fun `test parse student with renamed properties duplicated`(){
+    fun `test parse student with renamed properties duplicated`() {
         val yaml = """
             name: Maria Candida
             nr: 873435
@@ -367,8 +381,9 @@ class YamlParserCojenTest {
             YamlParserCojen.yamlParser(Student::class, 4).parseObject(yaml.reader())
         }
     }
+
     @Test
-    fun `test parse student with renamed properties`(){
+    fun `test parse student with renamed properties`() {
         val yaml = """
             name: Maria Candida
             nr: 873435
@@ -379,6 +394,7 @@ class YamlParserCojenTest {
         assertEquals(873435, st.nr)
         assertEquals("Lisboa", st.from)
     }
+
     @Test
     fun `test parse classroom renamed props`() {
         val yaml = """
@@ -390,6 +406,7 @@ class YamlParserCojenTest {
         assertEquals("i45", cr.id)
         assertStudentsInSequence(cr.students.iterator())
     }
+
     @Test
     fun `test parse student with custom parser`() {
         val yaml = """
@@ -398,12 +415,13 @@ class YamlParserCojenTest {
                 from: Oleiros
                 birth: 1999-12-15
             """.trimIndent()
-        val st = YamlParserCojen.yamlParser(Student::class,6).parseObject(yaml.reader())
+        val st = YamlParserCojen.yamlParser(Student::class, 6).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
         assertEquals(873435, st.nr)
         assertEquals("Oleiros", st.from)
         assertEquals(st.birth, LocalDate.of(1999, 12, 15))
     }
+
     @Test
     fun `test parse student with custom parser and list of grades`() {
         val yaml = """
@@ -422,7 +440,7 @@ class YamlParserCojenTest {
                     subject: PC
                     classification: 19
             """.trimIndent()
-        val st = YamlParserCojen.yamlParser(Student::class,6).parseObject(yaml.reader())
+        val st = YamlParserCojen.yamlParser(Student::class, 6).parseObject(yaml.reader())
         assertEquals("Maria Candida", st.name)
         assertEquals(873435, st.nr)
         assertEquals("Oleiros", st.from)
@@ -439,6 +457,7 @@ class YamlParserCojenTest {
         assertFalse { grades.hasNext() }
         assertEquals(LocalDate.of(1999, 12, 15), st.birth)
     }
+
     @Test
     fun `test parse with invalid date`() {
         val yaml = """
@@ -448,12 +467,12 @@ class YamlParserCojenTest {
                 birth: 1999-12-a
             """.trimIndent()
         assertThrows<DateTimeParseException> {
-            YamlParserCojen.yamlParser(Student::class,6).parseObject(yaml.reader())
+            YamlParserCojen.yamlParser(Student::class, 6).parseObject(yaml.reader())
         }
     }
 
     @Test
-    fun `test parse grades with custom parser`(){
+    fun `test parse grades with custom parser`() {
         val yaml = yamlSequenceOfGrades.trimIndent()
         val grades = YamlParserCojen.yamlParser(ClassGrades::class, 1)
             .parseObject(yaml.reader())
@@ -468,6 +487,44 @@ class YamlParserCojenTest {
         assertEquals("PC", g3.subject)
         assertEquals(19, g3.classification)
         assertFalse { grades.hasNext() }
+    }
+
+    @Test
+    fun `test parseSequence with yamlConvert counter`() {
+
+        class testStudentClass(
+            @YamlConvert(TestConverter::class)
+            val name: String,
+            val nr: Int,
+            val from: String
+        )
+
+        val yaml = """
+            - 
+              name: 1
+              nr: 873435
+              from: Oleiros
+            - 
+              name: 2
+              nr: 1214398
+              from: Tamega
+        """.trimIndent()
+
+        val seq = YamlParserCojen.yamlParser(testStudentClass::class, 3)
+            .parseSequence(yaml.reader())
+            .iterator()
+
+        val st1 = seq.next()
+        assertEquals("1", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        assertEquals(1, nameCounter)
+        val st2 = seq.next()
+        assertEquals("2", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        assertFalse { seq.hasNext() }
+        assertEquals(2, nameCounter)
     }
 
     @Test
@@ -500,10 +557,83 @@ class YamlParserCojenTest {
     }
 
     @Test
+    fun `parse sequence with list of list`() {
+        val yaml = """
+            - 
+              - 1
+              - 2
+              - 3
+            - 
+              - 4
+              - 5
+              - 6
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(Int::class)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        val list1 = iterator.next() as List<Int>
+        assertEquals(1, list1[0])
+        assertEquals(2, list1[1])
+        assertEquals(3, list1[2])
+        val list2 = iterator.next() as List<Int>
+        assertEquals(4, list2[0])
+        assertEquals(5, list2[1])
+        assertEquals(6, list2[2])
+        assert(!iterator.hasNext())
+    }
+
+    @Test
+    fun `parse sequence list of list of students`() {
+        val yaml = """
+            - 
+              - 
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+              - 
+                name: Jose Carioca
+                nr: 1214398
+                from: Tamega
+            - 
+              - 
+                name: Maria Candida
+                nr: 873435
+                from: Oleiros
+              - 
+                name: Jose Carioca
+                nr: 1214398
+                from: Tamega
+        """.trimIndent()
+        val parser = YamlParserCojen.yamlParser(Student::class, 3)
+        val sequence = parser.parseSequence(yaml.reader())
+        val iterator = sequence.iterator()
+        val list1 = iterator.next() as List<Student>
+        val st1 = list1[0]
+        assertEquals("Maria Candida", st1.name)
+        assertEquals(873435, st1.nr)
+        assertEquals("Oleiros", st1.from)
+        val st2 = list1[1]
+        assertEquals("Jose Carioca", st2.name)
+        assertEquals(1214398, st2.nr)
+        assertEquals("Tamega", st2.from)
+        val list2 = iterator.next() as List<Student>
+        val st3 = list2[0]
+        assertEquals("Maria Candida", st3.name)
+        assertEquals(873435, st3.nr)
+        assertEquals("Oleiros", st3.from)
+        val st4 = list2[1]
+        assertEquals("Jose Carioca", st4.name)
+        assertEquals(1214398, st4.nr)
+        assertEquals("Tamega", st4.from)
+        assert(!iterator.hasNext())
+    }
+
+    @Test
     fun `parseSequence should parse valid sequence of strings`() {
         val yaml = """
             - hello
             - world
+            
         """.trimIndent()
         val parser = YamlParserCojen.yamlParser(String::class)
         val sequence = parser.parseSequence(yaml.reader())
@@ -518,8 +648,45 @@ class YamlParserCojenTest {
         val yaml = ""
         val parser = YamlParserCojen.yamlParser(String::class)
         assertThrows<NoSuchElementException> {
-            parser.parseSequence(yaml.reader()).toList()
+            parser.parseSequence(yaml.reader()).iterator().next()
         }
+    }
+
+    @Test
+    fun `parseSequence of students`() {
+        val yaml = yamlSequenceOfStudents
+        val seq = YamlParserCojen.yamlParser(Student::class)
+            .parseSequence(yaml.reader())
+            .iterator()
+        assertStudentsInSequence(seq)
+    }
+
+    @Test
+    fun `parseSequence of grades`() {
+        val yaml = """
+            -
+              subject: LAE
+              classification: 18
+            -
+              subject: PDM
+              classification: 15
+            -
+              subject: PC
+              classification: 19
+        """.trimIndent()
+        val seq = YamlParserCojen.yamlParser(Grade::class)
+            .parseSequence(yaml.reader())
+            .iterator()
+        val g1 = seq.next()
+        assertEquals("LAE", g1.subject)
+        assertEquals(18, g1.classification)
+        val g2 = seq.next()
+        assertEquals("PDM", g2.subject)
+        assertEquals(15, g2.classification)
+        val g3 = seq.next()
+        assertEquals("PC", g3.subject)
+        assertEquals(19, g3.classification)
+        assertFalse { seq.hasNext() }
     }
 
     @Test
