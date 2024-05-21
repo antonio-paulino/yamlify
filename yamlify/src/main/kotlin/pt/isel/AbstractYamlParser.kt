@@ -17,25 +17,23 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
     abstract fun newInstance(args: Map<String, Any>): T
 
     final override fun parseFolderEager(path: String): List<T> {
-        return File(path).listFiles { _, name -> name.endsWith(".yaml") }?.map {
-            val yaml = it.reader()
-            parseObject(yaml)
-
-        }?.toList() ?: emptyList()
+        return File(path)
+            .listFiles()
+            ?.filter { it.extension == "yaml"}
+            ?.sortedBy { it.name }
+            ?.map { parseObject(it.reader()) } ?: emptyList()
     }
+
 
 
     final override fun parseFolderLazy(path: String): Sequence<T> {
         return sequence {
-            File(path).listFiles { _, name -> name.endsWith(".yaml") }?.forEach {
-                if (it.isFile) {
-                    val yaml = it.reader()
-                    yield(parseObject(yaml))
-                }
+            File(path)
+                .listFiles()
+                ?.filter { it.extension == "yaml"}
+                ?.sortedBy { it.name }
+                ?.forEach { yield(parseObject(it.reader())) }
             }
-        }
-
-
     }
 
     final override fun parseSequence(yaml: Reader): Sequence<T> {
@@ -43,8 +41,7 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
             override fun iterator(): Iterator<T> {
                 return object : Iterator<T> {
 
-                    val yamlText = yaml.useLines { it.toList() }
-                    val iter = yamlText.iterator()
+                    val iter = yaml.buffered().lines().iterator()
                     var listIndentation: Int? = null
                     var next: T? = null
                     var start = true
@@ -102,7 +99,6 @@ abstract class AbstractYamlParser<T : Any>(private val type: KClass<T>) : YamlPa
                         return result
                     }
                 }
-
             }
         }
     }

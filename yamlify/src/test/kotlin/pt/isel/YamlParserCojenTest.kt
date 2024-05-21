@@ -773,7 +773,6 @@ class YamlParserCojenTest {
         assertEquals(15, parsedFile3.grades.elementAt(1).classification)
         assertEquals("PC", parsedFile3.grades.elementAt(2).subject)
         assertEquals(19, parsedFile3.grades.elementAt(2).classification)
-
     }
 
     @Test
