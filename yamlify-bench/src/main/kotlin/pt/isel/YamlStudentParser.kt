@@ -109,6 +109,18 @@ class YamlStudentParser : YamlParser<Student> {
     override fun parseList(yaml: Reader): List<Student> {
         TODO("Not yet implemented")
     }
+
+    override fun parseSequence(yaml: Reader): Sequence<Student> {
+        TODO("Not yet implemented")
+    }
+
+    override fun parseFolderEager(folder: String): List<Student> {
+        TODO("Not yet implemented")
+    }
+
+    override fun parseFolderLazy(folder: String): Sequence<Student> {
+        TODO("Not yet implemented")
+    }
 }
 
 /**

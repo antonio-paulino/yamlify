@@ -26,4 +26,16 @@ class YamlSavingsAccountParser : YamlParser<SavingsAccount> {
     override fun parseList(yaml: Reader): List<SavingsAccount> {
         TODO("Not yet implemented")
     }
+
+    override fun parseSequence(yaml: Reader): Sequence<SavingsAccount> {
+        TODO("Not yet implemented")
+    }
+
+    override fun parseFolderEager(folder: String): List<SavingsAccount> {
+        TODO("Not yet implemented")
+    }
+
+    override fun parseFolderLazy(folder: String): Sequence<SavingsAccount> {
+        TODO("Not yet implemented")
+    }
 }
