@@ -5,8 +5,8 @@ with both eager and lazy sequences processing.
 
 ## Assignments
 
-1. Published 20-3-2024 **DEADLINE: 06-4-2024**
-1. Published 20-3-2024 **DEADLINE: 27-4-2024**
+1. Published 20-3-2024 **DEADLINE:** ~06-4-2024~ **13-04-2024**
+1. Published 20-3-2024 **DEADLINE:** ~27-4-2024~ **04-05-2024**
 1. Published 05-5-2024 **DEADLINE: 25-5-2024**
 
 ***
@@ -124,3 +124,48 @@ The suffix number in the class name indicates the number of parameters of the
 constructor used in the instantiation of the domain class.
 
 ![Reflect versus Dynamic](reflect-versus-dynamic.png "Reflect versus Dynamic")
+
+## Assigment 3
+
+### 3.1
+
+Implement a new method `parseSequence(yaml: Reader): Sequence<T>` that returns
+a **lazy sequence** for the YAML list read from the `yaml` `Reader` parameter.
+Throw an exception if the `yaml` `Reader` does not contain a representation of a
+list that should be transformed to a (**lazy**) sequence.
+
+Requirements:
+* The `parseSequence` method should be called **solely for parsing the root
+elements** of the YAML, whereas
+ nested elements should still be handled as
+_mappings_ (i.e. objects) or _sequences_ parsed through the `parseObject()` and
+ `parseList()` methods, respectively.
+* The `parseSequence` method should be implemented in `AbstractYamlParser` and
+ available to both subclasses `YamlParserReflect` and `YamlParserCojen`.
+
+Implement unit tests that verify the lazy behavior of the `parseSequence`
+method.
+
+Use the `@YamlConvert` annotation to associate a function
+that checks the moment when the elements of the sequence are produced.
+
+**You should test and verify the correct behavior for both `YamlParserReflect` and
+`YamlParserCojen`.**
+
+## 3.2
+
+Implement two new methods, `parseFolderEager(path: String): List<T>` and
+`parseFolderLazy(path: String): Sequence<T>`, which return a list or a lazy
+sequence, respectively. Each element in the list or sequence is the result of
+applying `parseObject` to the content of each file in the folder specified by
+`path`.
+
+Implement unit tests that demonstrate whether a change in a file during an
+iteration over the result of `parseFolder...` is visible or not, depending on
+whether the lazy or eager approach is used.
+
+Assume that all files have YAML representations of objects of the same type.
+Throw an exception if the YAML object is incompatible with `T`.
+
+**You should test and verify the correct behavior for both `YamlParserReflect` and
+`YamlParserCojen`.**
